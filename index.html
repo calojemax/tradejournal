@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Trade Journal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a26;
+    --border: #2a2a3a;
+    --accent: #00e5ff;
+    --green: #00ff88;
+    --red: #ff3d6e;
+    --orange: #ff9500;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --card: #14141e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100dvh;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 999; opacity: 0.4;
+  }
+
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    padding: 14px 20px 10px;
+    background: rgba(10,10,15,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .logo { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); }
+  .logo span { color: var(--text); }
+  .btn-export {
+    font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; padding: 7px 14px;
+    background: transparent; border: 1px solid var(--accent); color: var(--accent);
+    border-radius: 6px; cursor: pointer;
+  }
+  .btn-export:active { background: var(--accent); color: var(--bg); }
+
+  .stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat { background: var(--surface2); border-radius: 8px; padding: 8px 10px; text-align: center; border: 1px solid var(--border); }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; line-height: 1; }
+  .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-top: 3px; }
+
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .open-col { color: var(--orange); }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 106px; z-index: 90;
+  }
+  .tab {
+    flex: 1; padding: 10px 4px; text-align: center;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.2s; background: none; border-left: none; border-right: none; border-top: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .content { padding: 16px 20px 100px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* FORM */
+  .form-section { margin-bottom: 18px; }
+  .form-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .form-group { margin-bottom: 11px; }
+  label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Syne', sans-serif; font-size: 15px;
+    padding: 12px 14px; border-radius: 10px; outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  
+  /* Checkbox override - make them work */
+  input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    cursor: pointer;
+    -webkit-appearance: checkbox !important;
+    -moz-appearance: checkbox !important;
+    appearance: checkbox !important;
+    accent-color: var(--accent);
+  }
+  
+  select option { background: var(--surface2); }
+  textarea { resize: none; height: 80px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* CALC BOX */
+  .calc-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; margin-top: 4px;
+  }
+  .calc-box.has-data { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+  .calc-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .calc-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .calc-key { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .calc-val { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14px; }
+  .calc-empty { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0; }
+
+  /* TOGGLES */
+  .dir-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .dir-btn {
+    padding: 13px; text-align: center; font-weight: 700; font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; color: var(--muted); background: var(--surface2);
+    border: none; font-family: 'Syne', sans-serif;
+  }
+  .dir-btn.long.active { background: var(--green); color: var(--bg); }
+  .dir-btn.short.active { background: var(--red); color: var(--text); }
+
+  .outcome-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .outcome-btn {
+    padding: 12px; text-align: center; font-weight: 700; font-size: 11px;
+    letter-spacing: 0.8px; cursor: pointer; color: var(--muted); background: var(--surface2);
+    border: none; font-family: 'Syne', sans-serif; text-transform: uppercase;
+  }
+  .outcome-btn.win.active { background: var(--green); color: var(--bg); }
+  .outcome-btn.loss.active { background: var(--red); color: var(--text); }
+  .outcome-btn.be.active { background: var(--muted); color: var(--bg); }
+
+  .three-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .t3-btn {
+    padding: 11px 4px; text-align: center; font-weight: 700; font-size: 9px;
+    letter-spacing: 0.4px; cursor: pointer; color: var(--muted); background: var(--surface2);
+    border: none; font-family: 'Syne', sans-serif; text-transform: uppercase; line-height: 1.3;
+  }
+  .t3-btn.active-yes { background: var(--green); color: var(--bg); }
+  .t3-btn.active-no { background: var(--red); color: var(--text); }
+  .t3-btn.active-partial { background: var(--orange); color: var(--bg); }
+
+  .emotion-stars { display: flex; gap: 6px; padding: 6px 0; }
+  .star { font-size: 26px; cursor: pointer; filter: grayscale(1) opacity(0.3); flex: 1; text-align: center; transition: all 0.15s; }
+  .star.active { filter: none; transform: scale(1.1); }
+
+  .btn-submit {
+    width: 100%; padding: 16px; background: var(--accent); color: var(--bg);
+    font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; border: none; border-radius: 12px;
+    cursor: pointer; margin-top: 10px;
+  }
+  .btn-submit:active { transform: scale(0.97); }
+  .btn-open {
+    width: 100%; padding: 15px; background: transparent; color: var(--orange);
+    font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; border: 1px solid var(--orange);
+    border-radius: 12px; cursor: pointer; margin-top: 8px;
+  }
+  .btn-open:active { background: var(--orange); color: var(--bg); }
+
+  .info-pill {
+    display: inline-block; background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2); color: var(--accent);
+    font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px;
+  }
+
+  /* TRADE LIST */
+  .filters { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+  .filter-chip {
+    flex-shrink: 0; padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px;
+    font-size: 11px; font-weight: 600; cursor: pointer; background: transparent; color: var(--muted);
+    font-family: 'Syne', sans-serif;
+  }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .filter-chip.open-chip.active { background: var(--orange); border-color: var(--orange); color: var(--bg); }
+
+  .trade-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+    position: relative; overflow: hidden;
+  }
+  .trade-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .trade-card.win::before { background: var(--green); }
+  .trade-card.loss::before { background: var(--red); }
+  .trade-card.be::before { background: var(--muted); }
+  .trade-card.open::before { background: var(--orange); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .card-symbol { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; }
+  .card-pnl { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; }
+  .card-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 5px; }
+  .badge { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+  .badge-long { background: rgba(0,255,136,0.12); color: var(--green); }
+  .badge-short { background: rgba(255,61,110,0.12); color: var(--red); }
+  .badge-tf { background: var(--surface2); color: var(--muted); }
+  .badge-open { background: rgba(255,149,0,0.15); color: var(--orange); }
+  .card-date { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
+  .card-note { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; padding-top: 8px; border-top: 1px solid var(--border); }
+  .card-calc { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.6; }
+
+  .btn-close-trade {
+    display: block; width: 100%; margin-top: 10px; padding: 10px;
+    background: rgba(255,149,0,0.1); border: 1px solid var(--orange);
+    color: var(--orange); font-family: 'Space Mono', monospace; font-size: 11px;
+    font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    border-radius: 8px; cursor: pointer; text-align: center;
+  }
+  .btn-close-trade:active { background: var(--orange); color: var(--bg); }
+
+  .delete-btn {
+    position: absolute; right: 12px; bottom: 12px; background: none;
+    border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px; opacity: 0.4;
+  }
+  .delete-btn:active { opacity: 1; color: var(--red); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* ANALYTICS */
+  .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .analytics-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .analytics-card.full { grid-column: 1/-1; }
+  .a-label { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .a-val { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; }
+  .a-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .wl-bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; margin-top: 10px; }
+  .wl-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent)); border-radius: 4px; transition: width 0.5s ease; }
+  .symbol-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .symbol-row:last-child { border-bottom: none; }
+  .symbol-name { font-family: 'Space Mono', monospace; font-weight: 700; }
+  .symbol-meta { text-align: right; }
+  .symbol-trades { font-size: 10px; color: var(--muted); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 300; display: none; align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    border: 1px solid var(--border); border-bottom: none;
+    padding: 20px; width: 100%; max-height: 92dvh; overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-key { color: var(--muted); font-size: 12px; }
+  .detail-val { font-family: 'Space Mono', monospace; font-weight: 700; text-align: right; max-width: 60%; word-break: break-word; }
+  .section-sep { margin: 12px 0 10px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  /* CLOSE FORM */
+  .close-form { margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--border); }
+  .modal-section-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--orange); margin-bottom: 12px; }
+  .modal-section-title.accent { color: var(--accent); }
+
+  .btn-confirm-close {
+    width: 100%; padding: 15px; background: var(--green); color: var(--bg);
+    font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; border: none; border-radius: 12px;
+    cursor: pointer; margin-top: 12px;
+  }
+  .btn-confirm-close:active { transform: scale(0.97); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent); color: var(--bg);
+    padding: 10px 20px; border-radius: 30px; font-weight: 700; font-size: 13px;
+    transition: transform 0.3s ease; z-index: 500; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  input[type="number"] { -moz-appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">TRADE<span>LOG</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-export" onclick="resetAllData()" style="border-color:var(--muted);color:var(--muted)">🗑 SIFIRLA</button>
+      <button class="btn-export" onclick="exportToExcel()">↓ EXCEL</button>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-val" id="stat-total">0</div>
+      <div class="stat-label">İşlem</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-wr">—</div>
+      <div class="stat-label">Kazanma %</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-pnl">$0</div>
+      <div class="stat-label">Net P&L</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchPage('add', this)">+ Ekle</button>
+  <button class="tab" onclick="switchPage('journal', this)">Journal</button>
+  <button class="tab" onclick="switchPage('analytics', this)">Analiz</button>
+</div>
+
+<div class="content">
+
+  <!-- ADD PAGE -->
+  <div class="page active" id="page-add">
+
+    <div class="form-section">
+      <div class="form-title">📅 Temel Bilgiler</div>
+      <div class="form-group">
+        <label>Sembol / Parite</label>
+        <input type="text" id="f-symbol" placeholder="EURUSD, BTCUSDT, AAPL..." autocomplete="off" style="text-transform:uppercase">
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label>Giriş Tarihi</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Giriş Saati</label><input type="time" id="f-time"></div>
+      </div>
+      <div class="form-group">
+        <label>Gün İçi Sıra <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(bugünün kaçıncı işlemi)</span></label>
+        <input type="number" id="f-trade-number" placeholder="Örn: 1, 2, 3..." min="1" step="1">
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">📊 Pozisyon</div>
+      <div class="form-group">
+        <label>Yön</label>
+        <div class="dir-toggle">
+          <button class="dir-btn long active" id="dir-long" onclick="setDir('long')">▲ LONG</button>
+          <button class="dir-btn short" id="dir-short" onclick="setDir('short')">▼ SHORT</button>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label>Zaman Dilimi</label>
+          <select id="f-tf"><option>M1</option><option>M5</option><option>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option><option>W1</option><option>MN</option></select>
+        </div>
+        <div class="form-group">
+          <label>Piyasa</label>
+          <select id="f-market"><option>Forex</option><option>Kripto</option><option>Hisse</option><option>Emtia</option><option>Endeks</option></select>
+        </div>
+      </div>
+      <div class="row-3">
+        <div class="form-group"><label>Giriş</label><input type="number" id="f-entry" placeholder="0.00" step="any" oninput="recalc()"></div>
+        <div class="form-group"><label>SL</label><input type="number" id="f-sl" placeholder="0.00" step="any" oninput="recalc()"></div>
+        <div class="form-group"><label>TP</label><input type="number" id="f-tp" placeholder="0.00" step="any" oninput="recalc()"></div>
+      </div>
+      <div class="form-group">
+        <label>Pozisyon Büyüklüğü ($)</label>
+        <input type="number" id="f-possize" placeholder="Örn: 1000" step="any" oninput="recalc()">
+      </div>
+      <!-- AUTO CALC -->
+      <div class="calc-box" id="calc-box">
+        <div class="calc-empty">Giriş · SL · Pozisyon gir → otomatik hesap</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">💰 Durum & Kapanış</div>
+      <div class="info-pill">Açık olarak kaydet, sonra kapanışta güncelle — ya da kapalı olarak direkt kaydet</div>
+      
+      <div class="form-group">
+        <label>İşlem Durumu</label>
+        <div class="dir-toggle">
+          <button class="dir-btn long active" id="status-open" onclick="setTradeStatus('open')" style="font-size:11px">⏳ AÇIK</button>
+          <button class="dir-btn short" id="status-closed" onclick="setTradeStatus('closed')" style="font-size:11px">🔒 KAPALI</button>
+        </div>
+      </div>
+
+      <div id="exit-fields" style="display:none">
+        <div class="row-2" style="margin-top:11px">
+          <div class="form-group">
+            <label>Çıkış Fiyatı</label>
+            <input type="number" id="f-exit" placeholder="0.00" step="any" oninput="recalcEntry()">
+          </div>
+          <div class="form-group">
+            <label>Çıkış Tarihi</label>
+            <input type="date" id="f-exit-date">
+          </div>
+        </div>
+        
+        <div class="calc-box" id="entry-calc-box" style="margin-top:8px">
+          <div class="calc-empty">Çıkış fiyatı gir → Sonuç ve P&L otomatik hesaplanır</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">🧠 Strateji & Psikoloji</div>
+      <div class="form-group">
+        <label>Strateji / Setup <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(birden fazla seçilebilir)</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px" id="strategy-checkboxes">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Breakout" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Breakout
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Trend Takibi" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Trend Takibi
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Destek/Direnç" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Destek/Direnç
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Fibonacci" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Fibonacci
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="EMA Crossover" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> EMA Crossover
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Supply & Demand" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Supply & Demand
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="VWAP" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> VWAP
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="SFP" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> SFP
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Scalp" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Scalp
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="News Trade" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> News Trade
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;grid-column:1/-1">
+            <input type="checkbox" value="Diğer" id="strategy-other-cb" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Diğer
+          </label>
+        </div>
+        <div id="strategy-other-field" style="display:none;margin-top:10px">
+          <input type="text" id="strategy-other-text" placeholder="Hangi strateji? (örn: Reversal, Hedging...)" style="font-size:13px">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Duygusal Durum</label>
+        <div class="emotion-stars">
+          <div class="star" data-val="1" onclick="setEmotion(1)">😰</div>
+          <div class="star" data-val="2" onclick="setEmotion(2)">😕</div>
+          <div class="star active" data-val="3" onclick="setEmotion(3)">😐</div>
+          <div class="star" data-val="4" onclick="setEmotion(4)">🙂</div>
+          <div class="star" data-val="5" onclick="setEmotion(5)">😎</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Plan Uyumu</label>
+        <div class="dir-toggle">
+          <button class="dir-btn long" id="plan-yes" onclick="setPlan('yes')" style="font-size:11px">✓ PLAN DAHİLİ</button>
+          <button class="dir-btn short" id="plan-no" onclick="setPlan('no')" style="font-size:11px">✗ PLANSIZ</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Giriş Notu</label>
+        <textarea id="f-note" placeholder="Neden girdin? Hangi sinyali gördün?"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="saveTrade()">KAYDET →</button>
+  </div>
+
+  <!-- JOURNAL PAGE -->
+  <div class="page" id="page-journal">
+    <div class="filters">
+      <button class="filter-chip active" onclick="setFilter('all', this)">Tümü</button>
+      <button class="filter-chip open-chip" onclick="setFilter('open', this)">⏳ Açık</button>
+      <button class="filter-chip" onclick="setFilter('win', this)">Win</button>
+      <button class="filter-chip" onclick="setFilter('loss', this)">Loss</button>
+      <button class="filter-chip" onclick="setFilter('long', this)">Long</button>
+      <button class="filter-chip" onclick="setFilter('short', this)">Short</button>
+    </div>
+    <div id="trade-list"></div>
+  </div>
+
+  <!-- ANALYTICS PAGE -->
+  <div class="page" id="page-analytics">
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <div class="a-label">Toplam İşlem</div>
+        <div class="a-val" id="a-total">0</div>
+        <div class="a-sub" id="a-open-count">—</div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">Win Rate</div>
+        <div class="a-val pos" id="a-wr">—</div>
+        <div class="a-sub" id="a-wl-text">—</div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">Win / Loss Dağılımı</div>
+        <div class="wl-bar"><div class="wl-fill" id="a-wl-bar" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;">
+          <span class="pos" id="a-wins">0 kazanç</span>
+          <span class="neg" id="a-losses">0 kayıp</span>
+        </div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">Net P&L</div>
+        <div class="a-val" id="a-pnl">$0</div>
+        <div class="a-sub" id="a-pnl-sub">—</div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">Ort. R:R</div>
+        <div class="a-val" id="a-rr">—</div>
+        <div class="a-sub">Risk/Ödül</div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">En İyi</div>
+        <div class="a-val pos" id="a-best">—</div>
+        <div class="a-sub" id="a-best-sym">—</div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">En Kötü</div>
+        <div class="a-val neg" id="a-worst">—</div>
+        <div class="a-sub" id="a-worst-sym">—</div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">Strateji Başarısı</div>
+        <div id="strategy-breakdown" style="margin-top:8px;color:var(--muted);font-size:13px">Veri yok</div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">Sembol Dağılımı</div>
+        <div id="symbol-breakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">İşlem Detayı</div>
+    <div id="modal-body"></div>
+
+    <!-- CLOSE TRADE FORM -->
+    <div class="close-form" id="close-form" style="display:none">
+      <div class="modal-section-title">🔒 Pozisyonu Kapat</div>
+
+      <div class="row-2" style="margin-bottom:11px">
+        <div class="form-group"><label>Kapanış Fiyatı</label><input type="number" id="cf-exit" placeholder="0.00" step="any" oninput="recalcClose()"></div>
+        <div class="form-group"><label>Kapanış Tarihi</label><input type="date" id="cf-date"></div>
+      </div>
+
+      <div class="calc-box" id="close-calc-box" style="margin-bottom:16px">
+        <div class="calc-empty">Kapanış fiyatı gir → P&L ve sonuç otomatik hesaplanır</div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin-bottom:14px"></div>
+      <div class="modal-section-title accent" style="color:var(--accent)">🪞 Kapanış Değerlendirmesi</div>
+
+      <div class="form-group" style="margin-bottom:11px">
+        <label>Aynı setup tekrar gelse alır mıydın?</label>
+        <div class="three-toggle">
+          <button class="t3-btn" id="rq-again-yes" onclick="setReview('again','yes')">✓ Kesinlikle</button>
+          <button class="t3-btn" id="rq-again-partial" onclick="setReview('again','partial')">~ Belki</button>
+          <button class="t3-btn" id="rq-again-no" onclick="setReview('again','no')">✗ Hayır</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:11px">
+        <label>Çıkış zamanlaması nasıldı?</label>
+        <div class="three-toggle">
+          <button class="t3-btn" id="rq-exit-early" onclick="setReview('exit','early')">Erken çıktım</button>
+          <button class="t3-btn" id="rq-exit-right" onclick="setReview('exit','right')">Doğru zamanlama</button>
+          <button class="t3-btn" id="rq-exit-late" onclick="setReview('exit','late')">Geç kaldım</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:11px">
+        <label>Planıma ne kadar uydum?</label>
+        <div class="three-toggle">
+          <button class="t3-btn" id="rq-plan-yes" onclick="setReview('plan','yes')">✓ Tam uydum</button>
+          <button class="t3-btn" id="rq-plan-partial" onclick="setReview('plan','partial')">~ Kısmen</button>
+          <button class="t3-btn" id="rq-plan-no" onclick="setReview('plan','no')">✗ Plansız</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:11px">
+        <label>Kapanış Notu</label>
+        <textarea id="cf-note" placeholder="Ne öğrendin? Neyi farklı yapardın?" style="height:70px"></textarea>
+      </div>
+
+      <button class="btn-confirm-close" onclick="closeTrade()">KAYDET & KAPAT ✓</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// v3 uses its own clean key - no migration from old test data
+let trades = JSON.parse(localStorage.getItem('tradelog_v3') || '[]');
+let selectedDir = 'long';
+let selectedTradeStatus = 'open'; // 'open' or 'closed'
+let entryOutcome = null;
+let entryPnl = null;
+let selectedOutcome = null;
+let selectedEmotion = 3;
+let selectedPlan = null;
+let currentFilter = 'all';
+let cfOutcome = null;
+let cfPnl = null;
+let cfReview = { again: null, exit: null, plan: null };
+let activeCloseId = null;
+let editingTradeId = null;
+
+function init() {
+  const now = new Date();
+  document.getElementById('f-date').value = now.toISOString().slice(0,10);
+  document.getElementById('f-time').value = now.toTimeString().slice(0,5);
+  setEmotion(3);
+  renderTradeList();
+  updateStats();
+}
+
+function switchPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  btn.classList.add('active');
+  if (page === 'analytics') updateAnalytics();
+}
+
+function checkOtherStrategy() {
+  const otherCb = document.getElementById('strategy-other-cb');
+  const otherField = document.getElementById('strategy-other-field');
+  otherField.style.display = otherCb?.checked ? 'block' : 'none';
+}
+
+function getSelectedStrategies() {
+  const checkboxes = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]:checked');
+  const selected = Array.from(checkboxes).map(cb => {
+    if (cb.value === 'Diğer') {
+      const customText = document.getElementById('strategy-other-text').value.trim();
+      return customText ? `Diğer (${customText})` : 'Diğer';
+    }
+    return cb.value;
+  });
+  return selected;
+}
+
+function setSelectedStrategies(strategies) {
+  const checkboxes = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]');
+  checkboxes.forEach(cb => {
+    const isSelected = Array.isArray(strategies) 
+      ? strategies.some(s => s === cb.value || (cb.value === 'Diğer' && s.startsWith('Diğer')))
+      : strategies === cb.value;
+    cb.checked = isSelected;
+  });
+  
+  // Handle custom "Diğer" text
+  const otherStrategy = Array.isArray(strategies) 
+    ? strategies.find(s => s.startsWith('Diğer ('))
+    : null;
+  if (otherStrategy) {
+    const match = otherStrategy.match(/Diğer \((.*?)\)/);
+    if (match) document.getElementById('strategy-other-text').value = match[1];
+  }
+  
+  checkOtherStrategy();
+}
+
+function setTradeStatus(status) {
+  selectedTradeStatus = status;
+  document.getElementById('status-open').classList.toggle('active', status === 'open');
+  document.getElementById('status-closed').classList.toggle('active', status === 'closed');
+  document.getElementById('exit-fields').style.display = status === 'closed' ? 'block' : 'none';
+  if (status === 'closed') {
+    const now = new Date();
+    document.getElementById('f-exit-date').value = now.toISOString().slice(0,10);
+  }
+}
+
+function recalcEntry() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const exit = parseFloat(document.getElementById('f-exit').value);
+  const pos = parseFloat(document.getElementById('f-possize').value);
+  const box = document.getElementById('entry-calc-box');
+
+  if (!exit || !entry || !pos) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Çıkış fiyatı gir → Sonuç ve P&L otomatik hesaplanır</div>';
+    entryOutcome = null;
+    entryPnl = null;
+    return;
+  }
+
+  const priceDiff = selectedDir === 'long' ? exit - entry : entry - exit;
+  const usd = pos * Math.abs(exit - entry) / entry * (priceDiff >= 0 ? 1 : -1);
+  const isProfit = priceDiff >= 0;
+
+  let outcome = 'be';
+  if (Math.abs(usd) > 0.01) outcome = usd > 0 ? 'win' : 'loss';
+
+  const rawMovePct = (exit - entry) / entry * 100;
+
+  box.className = 'calc-box has-data';
+  box.innerHTML = `
+    <div class="calc-row">
+      <span class="calc-key">Fiyat Hareketi</span>
+      <span class="calc-val ${rawMovePct>=0?'pos':'neg'}">${rawMovePct>=0?'+':''}${rawMovePct.toFixed(2)}%</span>
+    </div>
+    <div class="calc-row">
+      <span class="calc-key">Sonuç</span>
+      <span class="calc-val" style="font-weight:800;font-size:15px;color:${outcome==='win'?'var(--green)':outcome==='loss'?'var(--red)':'var(--muted)'}">
+        ${outcome==='win'?'✓ WIN':outcome==='loss'?'✗ LOSS':'= BE'}
+      </span>
+    </div>
+    <div class="calc-row">
+      <span class="calc-key">P&L</span>
+      <span class="calc-val ${isProfit?'pos':'neg'}">${isProfit?'+':''}$${usd.toFixed(2)}</span>
+    </div>
+  `;
+
+  entryOutcome = outcome;
+  entryPnl = usd;
+}
+
+function setDir(dir) {
+  selectedDir = dir;
+  document.getElementById('dir-long').classList.toggle('active', dir === 'long');
+  document.getElementById('dir-short').classList.toggle('active', dir === 'short');
+  recalc();
+}
+
+function setEmotion(val) {
+  selectedEmotion = val;
+  document.querySelectorAll('.star').forEach((s,i) => s.classList.toggle('active', i < val));
+}
+
+function setPlan(p) {
+  selectedPlan = p;
+  document.getElementById('plan-yes').classList.toggle('active', p === 'yes');
+  document.getElementById('plan-no').classList.toggle('active', p === 'no');
+}
+
+// ── AUTO CALC (ENTRY FORM) ──
+function recalc() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const sl = parseFloat(document.getElementById('f-sl').value);
+  const tp = parseFloat(document.getElementById('f-tp').value);
+  const pos = parseFloat(document.getElementById('f-possize').value);
+  const box = document.getElementById('calc-box');
+  const rows = [];
+
+  if (!entry || isNaN(entry)) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Giriş · SL · Pozisyon gir → otomatik hesap</div>';
+    return;
+  }
+
+  if (sl && !isNaN(sl)) {
+    const riskPct = Math.abs((sl - entry) / entry * 100);
+    rows.push({ k:'SL Uzaklığı', v:`%${riskPct.toFixed(2)}`, c:'neg' });
+    if (pos && !isNaN(pos)) {
+      const riskUsd = pos * riskPct / 100;
+      rows.push({ k:'Risk ($)', v:`-$${riskUsd.toFixed(2)}`, c:'neg' });
+    }
+  }
+
+  if (tp && !isNaN(tp)) {
+    const tpPct = Math.abs((tp - entry) / entry * 100);
+    rows.push({ k:'TP Uzaklığı', v:`%${tpPct.toFixed(2)}`, c:'pos' });
+    if (pos && !isNaN(pos)) {
+      const tpUsd = pos * tpPct / 100;
+      rows.push({ k:'Hedef Kâr ($)', v:`+$${tpUsd.toFixed(2)}`, c:'pos' });
+    }
+  }
+
+  if (sl && tp && !isNaN(sl) && !isNaN(tp)) {
+    const riskPct = Math.abs((sl - entry) / entry);
+    const rewardPct = Math.abs((tp - entry) / entry);
+    if (riskPct > 0) {
+      const rr = (rewardPct / riskPct).toFixed(2);
+      rows.push({ k:'R:R Oranı', v:`1 : ${rr}`, c: parseFloat(rr)>=1?'pos':'neg' });
+    }
+  }
+
+  if (rows.length === 0) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Giriş · SL · Pozisyon gir → otomatik hesap</div>';
+    return;
+  }
+
+  box.className = 'calc-box has-data';
+  box.innerHTML = rows.map(r => `<div class="calc-row"><span class="calc-key">${r.k}</span><span class="calc-val ${r.c||''}">${r.v}</span></div>`).join('');
+}
+
+// ── SAVE ──
+function saveTrade() {
+  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
+  if (!symbol) { showToast('⚠️ Sembol girin!', 'err'); return; }
+
+  const entry = parseFloat(document.getElementById('f-entry').value) || null;
+  const sl = parseFloat(document.getElementById('f-sl').value) || null;
+  const tp = parseFloat(document.getElementById('f-tp').value) || null;
+  const pos = parseFloat(document.getElementById('f-possize').value) || null;
+
+  let rr = null;
+  if (entry && sl && tp) {
+    const risk = Math.abs((sl-entry)/entry);
+    const reward = Math.abs((tp-entry)/entry);
+    if (risk > 0) rr = (reward/risk).toFixed(2);
+  }
+
+  const isOpen = selectedTradeStatus === 'open';
+  let exitPrice = null;
+  let exitDate = null;
+  let outcome = 'open';
+  let pnl = null;
+
+  if (!isOpen) {
+    exitPrice = parseFloat(document.getElementById('f-exit').value) || null;
+    exitDate = document.getElementById('f-exit-date').value;
+    if (!exitPrice) {
+      showToast('⚠️ Çıkış fiyatı girin!', 'err');
+      return;
+    }
+    // Use auto-calculated values from recalcEntry
+    outcome = entryOutcome || 'be';
+    pnl = entryPnl !== null ? parseFloat(entryPnl.toFixed(2)) : 0;
+  }
+
+  const strategies = getSelectedStrategies();
+  const tradeNumber = parseInt(document.getElementById('f-trade-number').value) || null;
+
+  const trade = {
+    id: editingTradeId || Date.now(),
+    symbol,
+    date: document.getElementById('f-date').value,
+    time: document.getElementById('f-time').value,
+    tradeNumber,
+    direction: selectedDir,
+    timeframe: document.getElementById('f-tf').value,
+    market: document.getElementById('f-market').value,
+    entry, sl, tp, posSize: pos, rr,
+    pnl,
+    outcome,
+    isOpen,
+    exitPrice,
+    exitDate,
+    strategies,
+    emotion: selectedEmotion,
+    planFollowed: selectedPlan,
+    note: document.getElementById('f-note').value.trim(),
+    createdAt: editingTradeId ? trades.find(t=>t.id===editingTradeId)?.createdAt : new Date().toISOString(),
+    closeNote: null,
+    review: null
+  };
+
+  if (editingTradeId) {
+    const idx = trades.findIndex(t => t.id === editingTradeId);
+    if (idx !== -1) trades[idx] = trade;
+  } else {
+    trades.unshift(trade);
+  }
+
+  saveData();
+  showToast(editingTradeId ? '✓ Güncellendi!' : isOpen ? '⏳ Açık pozisyon kaydedildi!' : '✓ Kaydedildi!');
+  resetForm();
+  renderTradeList();
+  updateStats();
+}
+
+function resetForm() {
+  ['f-symbol','f-entry','f-sl','f-tp','f-possize','f-exit','f-note','f-trade-number','strategy-other-text'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.getElementById('f-exit-date').value = '';
+  document.getElementById('strategy-other-field').style.display = 'none';
+  selectedOutcome = null;
+  selectedPlan = null;
+  selectedTradeStatus = 'open';
+  editingTradeId = null;
+  entryOutcome = null;
+  entryPnl = null;
+  
+  document.getElementById('plan-yes').classList.remove('active');
+  document.getElementById('plan-no').classList.remove('active');
+  document.getElementById('exit-fields').style.display = 'none';
+  document.getElementById('entry-calc-box').className = 'calc-box';
+  document.getElementById('entry-calc-box').innerHTML = '<div class="calc-empty">Çıkış fiyatı gir → Sonuç ve P&L otomatik hesaplanır</div>';
+  
+  setDir('long');
+  setEmotion(3);
+  setTradeStatus('open');
+  recalc();
+}
+
+// ── CLOSE TRADE ──
+function openCloseModal(id) {
+  activeCloseId = id;
+  cfOutcome = null;
+  cfPnl = null;
+  cfReview = { again: null, exit: null, plan: null };
+
+  ['again-yes','again-partial','again-no','exit-early','exit-right','exit-late','plan-yes','plan-partial','plan-no'].forEach(k => {
+    const el = document.getElementById('rq-' + k);
+    if (el) el.className = 't3-btn';
+  });
+
+  document.getElementById('cf-exit').value = '';
+  document.getElementById('cf-note').value = '';
+  document.getElementById('cf-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('close-calc-box').className = 'calc-box';
+  document.getElementById('close-calc-box').innerHTML = '<div class="calc-empty">Kapanış fiyatı gir → P&L ve sonuç otomatik hesaplanır</div>';
+
+  showDetail(id, true);
+}
+
+function setReview(key, val) {
+  cfReview[key] = val;
+  const cls = { yes:'active-yes', no:'active-no', partial:'active-partial', early:'active-no', right:'active-yes', late:'active-partial' };
+  const groups = { again:['yes','partial','no'], exit:['early','right','late'], plan:['yes','partial','no'] };
+  groups[key].forEach(v => {
+    const el = document.getElementById(`rq-${key}-${v}`);
+    if (el) el.className = 't3-btn' + (v === val ? ' ' + cls[v] : '');
+  });
+}
+
+function recalcClose() {
+  const t = trades.find(x => x.id === activeCloseId);
+  if (!t) return;
+  const exitPrice = parseFloat(document.getElementById('cf-exit').value);
+  const box = document.getElementById('close-calc-box');
+
+  if (!exitPrice || !t.entry) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Kapanış fiyatı gir → P&L ve sonuç otomatik hesaplanır</div>';
+    return;
+  }
+
+  // For LONG: profit if exit > entry. For SHORT: profit if exit < entry.
+  const priceDiff = t.direction === 'long' ? exitPrice - t.entry : t.entry - exitPrice;
+  const usd = t.posSize ? t.posSize * Math.abs(exitPrice - t.entry) / t.entry * (priceDiff >= 0 ? 1 : -1) : 0;
+  const isProfit = priceDiff >= 0;
+
+  // Auto-determine outcome based on P&L
+  let outcome = 'be';
+  if (Math.abs(usd) > 0.01) {
+    outcome = usd > 0 ? 'win' : 'loss';
+  }
+
+  // Show raw price move
+  const rawMovePct = (exitPrice - t.entry) / t.entry * 100;
+
+  box.className = 'calc-box has-data';
+  box.innerHTML = `
+    <div class="calc-row">
+      <span class="calc-key">Fiyat Hareketi</span>
+      <span class="calc-val ${rawMovePct>=0?'pos':'neg'}">${rawMovePct>=0?'+':''}${rawMovePct.toFixed(2)}%</span>
+    </div>
+    <div class="calc-row">
+      <span class="calc-key">Sonuç</span>
+      <span class="calc-val" style="font-weight:800;font-size:15px;color:${outcome==='win'?'var(--green)':outcome==='loss'?'var(--red)':'var(--muted)'}">
+        ${outcome==='win'?'✓ WIN':outcome==='loss'?'✗ LOSS':'= BE (başabaş)'}
+      </span>
+    </div>
+    <div class="calc-row">
+      <span class="calc-key">Gerçekleşen P&L</span>
+      <span class="calc-val ${isProfit?'pos':'neg'}">${isProfit?'+':''}$${usd.toFixed(2)}</span>
+    </div>
+    ${t.sl ? `<div class="calc-row"><span class="calc-key">SL'e Mesafe</span><span class="calc-val">${(Math.abs(exitPrice-t.sl)/Math.abs(t.entry-t.sl)*100).toFixed(0)}% kaldı</span></div>` : ''}
+  `;
+
+  // Store outcome and pnl in global vars for closeTrade to use
+  cfOutcome = outcome;
+  cfPnl = usd;
+}
+
+function parsePnl(val) {
+  if (!val && val !== 0) return NaN;
+  // Replace comma with dot for locales that use comma as decimal separator
+  return parseFloat(String(val).replace(',', '.'));
+}
+
+function closeTrade() {
+  const t = trades.find(x => x.id === activeCloseId);
+  if (!t) return;
+
+  const exitPrice = parseFloat(document.getElementById('cf-exit').value);
+  if (!exitPrice || !t.entry) {
+    showToast('⚠️ Kapanış fiyatı girin!', 'err');
+    return;
+  }
+
+  // Use auto-calculated values from recalcClose
+  const finalOutcome = cfOutcome || 'be';
+  const finalPnl = cfPnl !== null ? cfPnl : 0;
+
+  Object.assign(t, {
+    isOpen: false,
+    outcome: finalOutcome,
+    pnl: parseFloat(finalPnl.toFixed(2)),
+    exitPrice,
+    exitDate: document.getElementById('cf-date').value,
+    closeNote: document.getElementById('cf-note').value.trim(),
+    review: { ...cfReview }
+  });
+
+  saveData();
+  document.getElementById('modal-overlay').classList.remove('open');
+  activeCloseId = null;
+  cfOutcome = null;
+  cfPnl = null;
+  renderTradeList();
+  updateStats();
+  showToast('✓ Pozisyon kapatıldı!');
+}
+
+// ── RENDER ──
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderTradeList();
+}
+
+function renderTradeList() {
+  const list = document.getElementById('trade-list');
+  const filtered = trades.filter(t => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'open') return t.isOpen;
+    if (currentFilter === 'win') return t.outcome === 'win';
+    if (currentFilter === 'loss') return t.outcome === 'loss';
+    if (currentFilter === 'long') return t.direction === 'long';
+    if (currentFilter === 'short') return t.direction === 'short';
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>İşlem yok</h3><p>+ Ekle sekmesinden işlem kaydet</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => {
+    const isOpen = t.isOpen;
+    const hasPnl = t.pnl !== null && t.pnl !== undefined;
+    const pnlCls = isOpen ? 'open-col' : !hasPnl ? '' : t.pnl > 0 ? 'pos' : t.pnl < 0 ? 'neg' : '';
+    const pnlStr = isOpen ? 'AÇIK' : !hasPnl ? '—' : t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
+
+    let calcLine = '';
+    if (t.posSize) {
+      const parts = [`Poz: $${t.posSize.toLocaleString()}`];
+      if (t.entry && t.sl) {
+        const risk = t.posSize * Math.abs((t.sl-t.entry)/t.entry);
+        parts.push(`Risk: $${risk.toFixed(0)}`);
+      }
+      if (t.rr) parts.push(`R:R 1:${t.rr}`);
+      calcLine = parts.join('  ·  ');
+    } else if (t.rr) {
+      calcLine = `R:R 1:${t.rr}`;
+    }
+
+    return `<div class="trade-card ${isOpen?'open':t.outcome}" onclick="showDetail(${t.id}, false)">
+      <div class="card-top">
+        <div>
+          <div class="card-symbol">${t.symbol}${t.tradeNumber ? ` <span style="font-size:11px;color:var(--muted);font-weight:400">#${t.tradeNumber}</span>` : ''}</div>
+          <div class="card-meta">
+            <span class="badge badge-${t.direction}">${t.direction.toUpperCase()}</span>
+            <span class="badge badge-tf">${t.timeframe}</span>
+            ${(() => {
+              const strats = Array.isArray(t.strategies) ? t.strategies : t.strategy ? [t.strategy] : [];
+              return strats.length ? `<span class="badge badge-tf">${strats.join(' + ')}</span>` : '';
+            })()}
+            ${isOpen ? `<span class="badge badge-open">⏳ AÇIK</span>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="card-pnl ${pnlCls}">${pnlStr}</div>
+          <div class="card-date">${t.date} ${t.time}</div>
+        </div>
+      </div>
+      ${calcLine ? `<div class="card-calc">${calcLine}</div>` : ''}
+      ${t.note ? `<div class="card-note">${t.note.slice(0,90)}${t.note.length>90?'...':''}</div>` : ''}
+      ${isOpen ? `<button class="btn-close-trade" onclick="event.stopPropagation();openCloseModal(${t.id})">🔒 KAPAT & DEĞERLENDİR</button>` : ''}
+      <button class="delete-btn" onclick="deleteTrade(event,${t.id})" style="right:50px">🗑</button>
+      <button class="delete-btn" onclick="editTrade(event,${t.id})" style="right:12px">✏️</button>
+    </div>`;
+  }).join('');
+}
+
+function showDetail(id, openClose = false) {
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+  const eMap = ['','😰 Çok Kötü','😕 Kötü','😐 Normal','🙂 İyi','😎 Çok İyi'];
+  const rAgain = {yes:'Kesinlikle alırdım', partial:'Belki alırdım', no:'Almazdım'};
+  const rExit = {early:'Erken çıktım', right:'Doğru zamanlama', late:'Geç kaldım'};
+  const rPlan = {yes:'Tam uydum', partial:'Kısmen uydum', no:'Plansız girişti'};
+
+  const hasPnl = t.pnl !== null && t.pnl !== undefined;
+  const pnlStr = t.isOpen ? '—' : !hasPnl ? '—' : t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
+
+  const rows = [
+    ['Yön', `<span class="${t.direction==='long'?'pos':'neg'}">${t.direction.toUpperCase()}</span>`],
+    ['Durum', t.isOpen ? '<span class="open-col">⏳ AÇIK</span>' : `<span class="${t.outcome==='win'?'pos':t.outcome==='loss'?'neg':''}">${t.outcome.toUpperCase()}</span>`],
+    (!t.isOpen && hasPnl) ? ['P&L', `<span class="${t.pnl>=0?'pos':'neg'}">${pnlStr}</span>`] : null,
+    t.tradeNumber ? ['Gün İçi Sıra', `#${t.tradeNumber}`] : null,
+    t.posSize ? ['Pozisyon', `$${t.posSize.toLocaleString()}`] : null,
+    (t.entry && t.sl && t.posSize) ? ['Risk ($)', `-$${(t.posSize*Math.abs((t.sl-t.entry)/t.entry)).toFixed(2)}`] : null,
+    (t.entry && t.tp && t.posSize) ? ['Hedef Kâr ($)', `+$${(t.posSize*Math.abs((t.tp-t.entry)/t.entry)).toFixed(2)}`] : null,
+    t.rr ? ['R:R Oranı', `1 : ${t.rr}`] : null,
+    ['Zaman Dilimi', t.timeframe],
+    ['Piyasa', t.market],
+    t.entry ? ['Giriş', t.entry] : null,
+    t.sl ? ['Stop Loss', t.sl] : null,
+    t.tp ? ['Take Profit', t.tp] : null,
+    t.exitPrice ? ['Çıkış Fiyatı', t.exitPrice] : null,
+    t.exitDate ? ['Çıkış Tarihi', t.exitDate] : t.exitTime ? ['Çıkış Saati', t.exitTime] : null,
+    (() => {
+      const strats = Array.isArray(t.strategies) ? t.strategies : t.strategy ? [t.strategy] : [];
+      return strats.length ? ['Strateji', strats.join(' + ')] : null;
+    })(),
+    ['Duygu', eMap[t.emotion]],
+    t.planFollowed ? ['Plan (Giriş)', t.planFollowed==='yes'?'✓ Plan dahili':'✗ Plansız'] : null,
+    t.note ? ['Giriş Notu', t.note] : null,
+  ];
+
+  if (!t.isOpen && t.review && (t.review.again || t.review.exit || t.review.plan || t.closeNote)) {
+    rows.push('__sep__');
+    if (t.review.again) rows.push(['Tekrar alır mıydın?', rAgain[t.review.again]||t.review.again]);
+    if (t.review.exit) rows.push(['Çıkış zamanlaması', rExit[t.review.exit]||t.review.exit]);
+    if (t.review.plan) rows.push(['Plan uyumu (çıkış)', rPlan[t.review.plan]||t.review.plan]);
+    if (t.closeNote) rows.push(['Kapanış Notu', t.closeNote]);
+  }
+
+  document.getElementById('modal-title').textContent = `${t.symbol} — ${t.date}`;
+  document.getElementById('modal-body').innerHTML = rows.filter(Boolean).map(r => {
+    if (r === '__sep__') return `<div class="section-sep" style="color:var(--accent)">── Kapanış Değerlendirmesi</div>`;
+    const [k,v] = r;
+    return `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`;
+  }).join('');
+
+  document.getElementById('close-form').style.display = (t.isOpen || openClose) ? 'block' : 'none';
+  if (openClose) activeCloseId = id;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+    activeCloseId = null;
+  }
+}
+
+function editTrade(e, id) {
+  e.stopPropagation();
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+
+  // Switch to add page
+  switchPage('add', document.querySelector('.tab'));
+  
+  // Fill form
+  editingTradeId = t.id;
+  document.getElementById('f-symbol').value = t.symbol || '';
+  document.getElementById('f-date').value = t.date || '';
+  document.getElementById('f-time').value = t.time || '';
+  document.getElementById('f-trade-number').value = t.tradeNumber || '';
+  document.getElementById('f-entry').value = t.entry || '';
+  document.getElementById('f-sl').value = t.sl || '';
+  document.getElementById('f-tp').value = t.tp || '';
+  document.getElementById('f-possize').value = t.posSize || '';
+  document.getElementById('f-note').value = t.note || '';
+  
+  setSelectedStrategies(t.strategies || t.strategy || []);
+  setDir(t.direction || 'long');
+  setEmotion(t.emotion || 3);
+  if (t.planFollowed) setPlan(t.planFollowed);
+  
+  if (t.isOpen) {
+    setTradeStatus('open');
+  } else {
+    setTradeStatus('closed');
+    document.getElementById('f-exit').value = t.exitPrice || '';
+    document.getElementById('f-exit-date').value = t.exitDate || t.exitTime || '';
+    recalcEntry();
+  }
+  
+  recalc();
+  window.scrollTo(0, 0);
+  showToast('✏️ Düzenleme modunda');
+}
+
+function deleteTrade(e, id) {
+  e.stopPropagation();
+  if (confirm('Bu işlemi silmek istiyor musun?')) {
+    trades = trades.filter(t => t.id !== id);
+    saveData(); renderTradeList(); updateStats();
+    showToast('Silindi');
+  }
+}
+
+// ── STATS ──
+function updateStats() {
+  const closed = trades.filter(t => !t.isOpen);
+  const wins = closed.filter(t => t.outcome === 'win').length;
+  const openCount = trades.filter(t => t.isOpen).length;
+  const netPnl = closed.reduce((s,t) => s+(t.pnl||0), 0);
+  const wr = closed.length > 0 ? Math.round(wins/closed.length*100) : null;
+
+  document.getElementById('stat-total').textContent = trades.length + (openCount > 0 ? ` (${openCount}⏳)` : '');
+  document.getElementById('stat-wr').textContent = wr !== null ? `${wr}%` : '—';
+  document.getElementById('stat-wr').className = `stat-val ${wr >= 50 ? 'pos' : wr !== null ? 'neg' : ''}`;
+  document.getElementById('stat-pnl').textContent = `${netPnl>=0?'+':''}$${netPnl.toFixed(0)}`;
+  document.getElementById('stat-pnl').className = `stat-val ${netPnl>0?'pos':netPnl<0?'neg':''}`;
+}
+
+// ── ANALYTICS ──
+function updateAnalytics() {
+  const closed = trades.filter(t => !t.isOpen);
+  const openCount = trades.filter(t => t.isOpen).length;
+
+  document.getElementById('a-total').textContent = trades.length;
+  document.getElementById('a-open-count').textContent = openCount > 0 ? `${openCount} açık pozisyon` : 'tümü kapalı';
+
+  if (closed.length === 0) return;
+  const wins = closed.filter(t => t.outcome === 'win');
+  const losses = closed.filter(t => t.outcome === 'loss');
+  const wr = ((wins.length/closed.length)*100).toFixed(1);
+  const netPnl = closed.reduce((s,t) => s+(t.pnl||0), 0);
+  const pnlList = closed.map(t=>t.pnl||0).filter(p=>p!==0);
+  const best = pnlList.length ? Math.max(...pnlList) : 0;
+  const worst = pnlList.length ? Math.min(...pnlList) : 0;
+
+  document.getElementById('a-wr').textContent = `${wr}%`;
+  document.getElementById('a-wl-text').textContent = `${wins.length}W / ${losses.length}L`;
+  document.getElementById('a-wl-bar').style.width = `${wr}%`;
+  document.getElementById('a-wins').textContent = `${wins.length} kazanç`;
+  document.getElementById('a-losses').textContent = `${losses.length} kayıp`;
+
+  const pnlEl = document.getElementById('a-pnl');
+  pnlEl.textContent = `${netPnl>=0?'+':''}$${netPnl.toFixed(2)}`;
+  pnlEl.className = `a-val ${netPnl>=0?'pos':'neg'}`;
+
+  const avgW = wins.length ? wins.reduce((s,t)=>s+(t.pnl||0),0)/wins.length : 0;
+  const avgL = losses.length ? Math.abs(losses.reduce((s,t)=>s+(t.pnl||0),0)/losses.length) : 0;
+  document.getElementById('a-rr').textContent = avgL > 0 ? `1:${(avgW/avgL).toFixed(2)}` : '—';
+
+  document.getElementById('a-best').textContent = pnlList.length ? `+$${best.toFixed(2)}` : '—';
+  document.getElementById('a-best-sym').textContent = closed.find(t=>t.pnl===best)?.symbol || '';
+  document.getElementById('a-worst').textContent = pnlList.length ? `-$${Math.abs(worst).toFixed(2)}` : '—';
+  document.getElementById('a-worst-sym').textContent = closed.find(t=>t.pnl===worst)?.symbol || '';
+
+  // Strategy
+  const strats = {};
+  closed.forEach(t => {
+    if (!t.strategy) return;
+    if (!strats[t.strategy]) strats[t.strategy] = {total:0,wins:0};
+    strats[t.strategy].total++;
+    if (t.outcome === 'win') strats[t.strategy].wins++;
+  });
+  document.getElementById('strategy-breakdown').innerHTML = Object.keys(strats).length === 0
+    ? '<span style="color:var(--muted);font-size:13px">Strateji verisi yok</span>'
+    : Object.entries(strats).sort((a,b)=>b[1].total-a[1].total).map(([name,s]) => {
+        const wr = Math.round(s.wins/s.total*100);
+        return `<div class="symbol-row"><span class="symbol-name">${name}</span><div class="symbol-meta"><div class="${wr>=50?'pos':'neg'}" style="font-weight:700;font-family:'Space Mono',monospace">${wr}%</div><div class="symbol-trades">${s.total} işlem</div></div></div>`;
+      }).join('');
+
+  // Symbols
+  const syms = {};
+  closed.forEach(t => {
+    if (!syms[t.symbol]) syms[t.symbol] = {total:0,pnl:0};
+    syms[t.symbol].total++; syms[t.symbol].pnl += (t.pnl||0);
+  });
+  document.getElementById('symbol-breakdown').innerHTML = Object.entries(syms)
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([sym,s]) => `<div class="symbol-row"><span class="symbol-name">${sym}</span><div class="symbol-meta"><div class="${s.pnl>=0?'pos':'neg'}" style="font-weight:700;font-family:'Space Mono',monospace">${s.pnl>=0?'+':''}$${s.pnl.toFixed(2)}</div><div class="symbol-trades">${s.total} işlem</div></div></div>`).join('')
+    || '<span style="color:var(--muted);font-size:13px">Veri yok</span>';
+}
+
+// ── EXCEL ──
+function exportToExcel() {
+  if (trades.length === 0) { showToast('⚠️ İşlem yok!'); return; }
+  const eMap = {1:'Çok Kötü',2:'Kötü',3:'Normal',4:'İyi',5:'Çok İyi'};
+  const rAgain = {yes:'Kesinlikle alırdım',partial:'Belki',no:'Almazdım'};
+  const rExit = {early:'Erken çıktım',right:'Doğru zamanlama',late:'Geç kaldım'};
+  const rPlan = {yes:'Tam uydum',partial:'Kısmen',no:'Plansız girişti'};
+
+  const data = trades.map(t => {
+    const risk = (t.entry&&t.sl&&t.posSize) ? (t.posSize*Math.abs((t.sl-t.entry)/t.entry)).toFixed(2) : '';
+    const tpUsd = (t.entry&&t.tp&&t.posSize) ? (t.posSize*Math.abs((t.tp-t.entry)/t.entry)).toFixed(2) : '';
+    const strats = Array.isArray(t.strategies) ? t.strategies.join(' + ') : t.strategy || '';
+    return {
+      'Giriş Tarihi':t.date, 'Giriş Saati':t.time, 
+      'Gün İçi Sıra':t.tradeNumber||'',
+      'Sembol':t.symbol, 'Piyasa':t.market,
+      'Yön':t.direction==='long'?'Long':'Short', 'Zaman Dilimi':t.timeframe,
+      'Strateji':strats,
+      'Giriş':t.entry||'', 'SL':t.sl||'', 'TP':t.tp||'',
+      'Çıkış Fiyatı':t.exitPrice||'', 'Çıkış Tarihi':t.exitDate||t.exitTime||'',
+      'Pozisyon ($)':t.posSize||'', 'Risk ($)':risk, 'Hedef Kâr ($)':tpUsd, 'R:R':t.rr?`1:${t.rr}`:'',
+      'Sonuç':t.isOpen?'Açık':t.outcome==='win'?'Kazanç':t.outcome==='loss'?'Kayıp':'Başabaş',
+      'P&L ($)':t.pnl!==null?t.pnl:'',
+      'Duygu':eMap[t.emotion]||'',
+      'Plan Uyumu (Giriş)':t.planFollowed==='yes'?'Evet':t.planFollowed==='no'?'Hayır':'',
+      'Giriş Notu':t.note||'',
+      'Tekrar Alır Mıydın?':t.review?.again?rAgain[t.review.again]:'',
+      'Çıkış Zamanlaması':t.review?.exit?rExit[t.review.exit]:'',
+      'Kapanış Plan Uyumu':t.review?.plan?rPlan[t.review.plan]:'',
+      'Kapanış Notu':t.closeNote||'',
+    };
+  });
+
+  const closed = trades.filter(t=>!t.isOpen);
+  const wins = closed.filter(t=>t.outcome==='win');
+  const losses = closed.filter(t=>t.outcome==='loss');
+  const netPnl = closed.reduce((s,t)=>s+(t.pnl||0),0);
+  const summary = [
+    {İstatistik:'Toplam İşlem', Değer:trades.length},
+    {İstatistik:'Açık Pozisyon', Değer:trades.filter(t=>t.isOpen).length},
+    {İstatistik:'Win Rate', Değer:closed.length?((wins.length/closed.length)*100).toFixed(1)+'%':'—'},
+    {İstatistik:'Net P&L ($)', Değer:netPnl.toFixed(2)},
+    {İstatistik:'Ort. Kazanç ($)', Değer:wins.length?(wins.reduce((s,t)=>s+(t.pnl||0),0)/wins.length).toFixed(2):'—'},
+    {İstatistik:'Ort. Kayıp ($)', Değer:losses.length?(losses.reduce((s,t)=>s+(t.pnl||0),0)/losses.length).toFixed(2):'—'},
+    {İstatistik:'Export', Değer:new Date().toLocaleDateString('tr-TR')},
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(data);
+  const ws2 = XLSX.utils.json_to_sheet(summary);
+  ws1['!cols'] = Array(24).fill({wch:16});
+  XLSX.utils.book_append_sheet(wb, ws1, 'İşlemler');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Özet');
+  XLSX.writeFile(wb, `TradeJournal_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('✓ Excel indirildi!');
+}
+
+function resetAllData() {
+  if (confirm('Tüm işlemleri silmek istediğine emin misin? Bu işlem geri alınamaz.')) {
+    trades = [];
+    saveData();
+    renderTradeList();
+    updateStats();
+    showToast('✓ Tüm veriler silindi');
+  }
+}
+
+function saveData() { localStorage.setItem('tradelog_v3', JSON.stringify(trades)); }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'err' ? 'var(--red)' : 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
