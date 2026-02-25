@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Trade Journal</title>
+<title>TradeLog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -59,6 +68,18 @@
     border-radius: 6px; cursor: pointer;
   }
   .btn-export:active { background: var(--accent); color: var(--bg); }
+
+  .fib-btn {
+    font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); transition: all 0.15s;
+  }
+  .fib-btn.active {
+    background: rgba(255,149,0,0.15); border-color: var(--orange);
+    color: var(--orange);
+  }
+  .fib-btn:active { opacity: 0.7; }
 
   .stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .stat { background: var(--surface2); border-radius: 8px; padding: 8px 10px; text-align: center; border: 1px solid var(--border); }
@@ -307,7 +328,7 @@
 
 <div class="header">
   <div class="header-top">
-    <div class="logo">TRADE<span>LOG</span></div>
+    <div class="logo" style="display:flex;align-items:center;gap:0"><img src="data:image/png;base64,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" style="height:36px;width:auto" alt="TradeLog"></div>
     <div style="display:flex;gap:8px">
       <button class="btn-export" onclick="resetAllData()" style="border-color:var(--muted);color:var(--muted)">🗑 SIFIRLA</button>
       <button class="btn-export" onclick="exportToExcel()">↓ EXCEL</button>
@@ -435,7 +456,7 @@
             <input type="checkbox" value="Destek/Direnç" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Destek/Direnç
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
-            <input type="checkbox" value="Fibonacci" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Fibonacci
+            <input type="checkbox" id="strategy-fib-cb" value="Fibonacci" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Fibonacci
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="EMA Crossover" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> EMA Crossover
@@ -455,9 +476,26 @@
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="News Trade" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> News Trade
           </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500;grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Haftalık H/L Likidite" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Haftalık H/L Likidite
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="Diğer" id="strategy-other-cb" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Diğer
           </label>
+        </div>
+        <div id="strategy-fib-field" style="display:none;margin-top:10px">
+          <label style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px">📐 Fibonacci Seviyesi</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button type="button" onclick="selectFibLevel(this,'0.236')" class="fib-btn">0.236</button>
+            <button type="button" onclick="selectFibLevel(this,'0.382')" class="fib-btn">0.382</button>
+            <button type="button" onclick="selectFibLevel(this,'0.5')" class="fib-btn">0.500</button>
+            <button type="button" onclick="selectFibLevel(this,'0.618')" class="fib-btn">0.618</button>
+            <button type="button" onclick="selectFibLevel(this,'0.786')" class="fib-btn">0.786</button>
+            <button type="button" onclick="selectFibLevel(this,'1.0')" class="fib-btn">1.000</button>
+            <button type="button" onclick="selectFibLevel(this,'1.272')" class="fib-btn">1.272</button>
+            <button type="button" onclick="selectFibLevel(this,'1.618')" class="fib-btn">1.618</button>
+          </div>
+          <input type="text" id="fib-level-custom" placeholder="veya manuel gir (örn: 0.705)" style="font-size:13px;margin-top:8px" oninput="clearFibButtons()">
         </div>
         <div id="strategy-other-field" style="display:none;margin-top:10px">
           <input type="text" id="strategy-other-text" placeholder="Hangi strateji? (örn: Reversal, Hedging...)" style="font-size:13px">
@@ -654,7 +692,35 @@ function switchPage(page, btn) {
 function checkOtherStrategy() {
   const otherCb = document.getElementById('strategy-other-cb');
   const otherField = document.getElementById('strategy-other-field');
-  otherField.style.display = otherCb?.checked ? 'block' : 'none';
+  if (otherField) otherField.style.display = otherCb?.checked ? 'block' : 'none';
+  const fibCb = document.getElementById('strategy-fib-cb');
+  const fibField = document.getElementById('strategy-fib-field');
+  if (fibField) fibField.style.display = fibCb?.checked ? 'block' : 'none';
+}
+
+function selectFibLevel(btn, val) {
+  document.querySelectorAll('.fib-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('fib-level-custom').value = val;
+}
+
+function clearFibButtons() {
+  document.querySelectorAll('.fib-btn').forEach(b => b.classList.remove('active'));
+}
+
+function getFibLevel() {
+  const fibCb = document.getElementById('strategy-fib-cb');
+  if (!fibCb?.checked) return null;
+  return document.getElementById('fib-level-custom')?.value.trim() || null;
+}
+
+function setFibLevel(val) {
+  if (!val) return;
+  const input = document.getElementById('fib-level-custom');
+  if (input) input.value = val;
+  document.querySelectorAll('.fib-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick').includes("'" + val + "'"));
+  });
 }
 
 function getSelectedStrategies() {
@@ -664,6 +730,10 @@ function getSelectedStrategies() {
       const customText = document.getElementById('strategy-other-text').value.trim();
       return customText ? `Diğer (${customText})` : 'Diğer';
     }
+    if (cb.value === 'Fibonacci') {
+      const fibLevel = getFibLevel();
+      return fibLevel ? `Fibonacci (${fibLevel})` : 'Fibonacci';
+    }
     return cb.value;
   });
   return selected;
@@ -672,21 +742,21 @@ function getSelectedStrategies() {
 function setSelectedStrategies(strategies) {
   const checkboxes = document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]');
   checkboxes.forEach(cb => {
-    const isSelected = Array.isArray(strategies) 
-      ? strategies.some(s => s === cb.value || (cb.value === 'Diğer' && s.startsWith('Diğer')))
+    const isSelected = Array.isArray(strategies)
+      ? strategies.some(s => s === cb.value || (cb.value === 'Diğer' && s.startsWith('Diğer')) || (cb.value === 'Fibonacci' && s.startsWith('Fibonacci')))
       : strategies === cb.value;
     cb.checked = isSelected;
   });
-  
-  // Handle custom "Diğer" text
-  const otherStrategy = Array.isArray(strategies) 
-    ? strategies.find(s => s.startsWith('Diğer ('))
-    : null;
+  const otherStrategy = Array.isArray(strategies) ? strategies.find(s => s.startsWith('Diğer (')) : null;
   if (otherStrategy) {
     const match = otherStrategy.match(/Diğer \((.*?)\)/);
     if (match) document.getElementById('strategy-other-text').value = match[1];
   }
-  
+  const fibStrategy = Array.isArray(strategies) ? strategies.find(s => s.startsWith('Fibonacci (')) : null;
+  if (fibStrategy) {
+    const match = fibStrategy.match(/Fibonacci \((.*?)\)/);
+    if (match) setFibLevel(match[1]);
+  }
   checkOtherStrategy();
 }
 
@@ -893,13 +963,15 @@ function saveTrade() {
 }
 
 function resetForm() {
-  ['f-symbol','f-entry','f-sl','f-tp','f-possize','f-exit','f-note','f-trade-number','strategy-other-text'].forEach(id => {
+  ['f-symbol','f-entry','f-sl','f-tp','f-possize','f-exit','f-note','f-trade-number','strategy-other-text','fib-level-custom'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
   document.getElementById('f-exit-date').value = '';
   document.getElementById('strategy-other-field').style.display = 'none';
+  const fibFieldReset = document.getElementById('strategy-fib-field'); if(fibFieldReset) fibFieldReset.style.display = 'none';
+  document.querySelectorAll('.fib-btn').forEach(b => b.classList.remove('active'));
   selectedOutcome = null;
   selectedPlan = null;
   selectedTradeStatus = 'open';
