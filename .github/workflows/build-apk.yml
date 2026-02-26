@@ -1,0 +1,65 @@
+name: Build TradeLog APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli@latest
+
+      - name: Generate signing keystore
+        run: |
+          keytool -genkey -v \
+            -keystore tradelog.keystore \
+            -alias tradelog \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass tradelog123 -keypass tradelog123 \
+            -dname "CN=TradeLog,O=TradeLog,C=TR"
+
+      - name: Build TWA with Bubblewrap
+        run: |
+          bubblewrap init \
+            --manifest https://calojemax.github.io/tradejournal/manifest.json
+          
+          # Update signing key in twa-manifest.json
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('twa-manifest.json','utf8'));
+            m.signingKey = { path: '../tradelog.keystore', alias: 'tradelog' };
+            m.packageId = 'com.tradelog.app';
+            fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2));
+          "
+          
+          bubblewrap build
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: TradeLog-APK
+          path: |
+            app-release-signed.apk
+            app-release.apk
+            **/*.apk
+          retention-days: 30
