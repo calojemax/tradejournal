@@ -30,35 +30,28 @@ jobs:
       - name: Create TWA Android Project
         run: |
           mkdir -p twa-app/app/src/main/res/values
-          mkdir -p twa-app/app/src/main/res/drawable
           mkdir -p twa-app/app/src/main/java/com/tradelog/app
 
-          # settings.gradle
           cat > twa-app/settings.gradle << 'EOF'
           rootProject.name = "TradeLog"
           include ':app'
           EOF
 
-          # Root build.gradle
           cat > twa-app/build.gradle << 'EOF'
           buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.0'
-              }
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }
           }
           allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
           }
           EOF
 
-          # gradle wrapper properties
+          cat > twa-app/gradle.properties << 'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
           mkdir -p twa-app/gradle/wrapper
           cat > twa-app/gradle/wrapper/gradle-wrapper.properties << 'EOF'
           distributionBase=GRADLE_USER_HOME
@@ -68,12 +61,6 @@ jobs:
           zipStorePath=wrapper/dists
           EOF
 
-          # gradlew
-          cp $(which gradle 2>/dev/null || echo /dev/null) twa-app/gradlew 2>/dev/null || true
-          curl -sL https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -o twa-app/gradlew 2>/dev/null || true
-          chmod +x twa-app/gradlew
-
-          # app/build.gradle
           cat > twa-app/app/build.gradle << 'EOF'
           plugins {
               id 'com.android.application'
@@ -83,15 +70,13 @@ jobs:
               compileSdk 34
               defaultConfig {
                   applicationId "com.tradelog.app"
-                  minSdk 19
+                  minSdk 21
                   targetSdk 34
                   versionCode 1
                   versionName "1.0.0"
               }
               buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
+                  release { minifyEnabled false }
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
@@ -103,7 +88,6 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
           cat > twa-app/app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -116,7 +100,7 @@ jobs:
                       <meta-data
                           android:name="android.support.customtabs.trusted.DEFAULT_URL"
                           android:value="https://calojemax.github.io/tradejournal/" />
-                      <intent-filter android:autoVerify="true">
+                      <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
@@ -133,7 +117,6 @@ jobs:
           </manifest>
           EOF
 
-          # strings.xml
           cat > twa-app/app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -141,28 +124,25 @@ jobs:
           </resources>
           EOF
 
-          # styles.xml
           cat > twa-app/app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <style name="Theme.App" parent="android:Theme.NoTitleBar">
+              <style name="Theme.App" parent="Theme.AppCompat.Light.NoActionBar">
                   <item name="android:windowBackground">#0a0a0f</item>
-                  <item name="android:statusBarColor">#0a0a0f</item>
               </style>
           </resources>
           EOF
 
-      - name: Download Gradle wrapper
+      - name: Setup Gradle wrapper
         run: |
           cd twa-app
-          gradle wrapper --gradle-version 8.2 || true
-          ls -la
+          gradle wrapper --gradle-version 8.2
 
       - name: Build debug APK
         run: |
           cd twa-app
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Find APK
         run: find twa-app -name "*.apk" | head -10
