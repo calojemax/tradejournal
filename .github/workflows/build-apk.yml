@@ -21,78 +21,155 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
 
-      - name: Generate keystore
-        run: |
-          keytool -genkey -v \
-            -keystore $HOME/tradelog.keystore \
-            -alias tradelog \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass tradelog123 -keypass tradelog123 \
-            -dname "CN=TradeLog,O=TradeLog,C=TR"
+      - name: Install SDK components
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Create twa-manifest.json
+      - name: Create TWA Android Project
         run: |
-          cat > twa-manifest.json << 'EOF'
-          {
-            "packageId": "com.tradelog.app",
-            "host": "calojemax.github.io",
-            "startUrl": "/tradejournal/",
-            "name": "TradeLog",
-            "launcherName": "TradeLog",
-            "display": "standalone",
-            "orientation": "portrait",
-            "themeColor": "#0a0a0f",
-            "navigationColor": "#0a0a0f",
-            "navigationColorDark": "#0a0a0f",
-            "navigationDividerColor": "#0a0a0f",
-            "navigationDividerColorDark": "#0a0a0f",
-            "backgroundColor": "#0a0a0f",
-            "enableNotifications": false,
-            "shortcuts": [],
-            "iconUrl": "https://calojemax.github.io/tradejournal/icons/icon-512.png",
-            "maskableIconUrl": "https://calojemax.github.io/tradejournal/icons/icon-512.png",
-            "monochromeIconUrl": "https://calojemax.github.io/tradejournal/icons/icon-512.png",
-            "appVersion": "1.0.0",
-            "appVersionCode": 1,
-            "signingKey": {
-              "path": "/root/tradelog.keystore",
-              "alias": "tradelog"
-            },
-            "minSdkVersion": 19,
-            "targetSdkVersion": 34,
-            "retainedBundles": [],
-            "features": {},
-            "alphaDependencies": { "enabled": false },
-            "enableSiteSettingsShortcut": false,
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "fullScopeUrl": "https://calojemax.github.io/tradejournal/",
-            "webManifestUrl": "https://calojemax.github.io/tradejournal/manifest.json",
-            "generatorApp": "bubblewrap-cli",
-            "sdkVersion": "1.21.1",
-            "useBrowserOnChromeOS": false,
-            "fallbackType": "customtabs"
+          mkdir -p twa-app/app/src/main/res/values
+          mkdir -p twa-app/app/src/main/res/drawable
+          mkdir -p twa-app/app/src/main/java/com/tradelog/app
+
+          # settings.gradle
+          cat > twa-app/settings.gradle << 'EOF'
+          rootProject.name = "TradeLog"
+          include ':app'
+          EOF
+
+          # Root build.gradle
+          cat > twa-app/build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.0'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
           }
           EOF
 
-      - name: Build APK
-        env:
-          SIGNING_STORE_PASSWORD: tradelog123
-          SIGNING_KEY_PASSWORD: tradelog123
-        run: bubblewrap build --skipPwaValidation
+          # gradle wrapper properties
+          mkdir -p twa-app/gradle/wrapper
+          cat > twa-app/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
 
-      - name: Find APK files
-        run: find . -name "*.apk" -o -name "*.aab" 2>/dev/null | head -20
+          # gradlew
+          cp $(which gradle 2>/dev/null || echo /dev/null) twa-app/gradlew 2>/dev/null || true
+          curl -sL https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -o twa-app/gradlew 2>/dev/null || true
+          chmod +x twa-app/gradlew
+
+          # app/build.gradle
+          cat > twa-app/app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.tradelog.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.tradelog.app"
+                  minSdk 19
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies {
+              implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+          }
+          EOF
+
+          # AndroidManifest.xml
+          cat > twa-app/app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="TradeLog"
+                  android:theme="@style/Theme.App">
+                  <activity
+                      android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                      android:exported="true">
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                          android:value="https://calojemax.github.io/tradejournal/" />
+                      <intent-filter android:autoVerify="true">
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <intent-filter android:autoVerify="true">
+                          <action android:name="android.intent.action.VIEW"/>
+                          <category android:name="android.intent.category.DEFAULT"/>
+                          <category android:name="android.intent.category.BROWSABLE"/>
+                          <data android:scheme="https"
+                                android:host="calojemax.github.io"
+                                android:pathPrefix="/tradejournal"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # strings.xml
+          cat > twa-app/app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">TradeLog</string>
+          </resources>
+          EOF
+
+          # styles.xml
+          cat > twa-app/app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.App" parent="android:Theme.NoTitleBar">
+                  <item name="android:windowBackground">#0a0a0f</item>
+                  <item name="android:statusBarColor">#0a0a0f</item>
+              </style>
+          </resources>
+          EOF
+
+      - name: Download Gradle wrapper
+        run: |
+          cd twa-app
+          gradle wrapper --gradle-version 8.2 || true
+          ls -la
+
+      - name: Build debug APK
+        run: |
+          cd twa-app
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Find APK
+        run: find twa-app -name "*.apk" | head -10
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: TradeLog-APK
-          path: |
-            **/*.apk
-            **/*.aab
-          if-no-files-found: warn
+          path: twa-app/**/*.apk
           retention-days: 30
