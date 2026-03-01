@@ -84,6 +84,7 @@ jobs:
               }
           }
           dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
               implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
           }
           EOF
@@ -127,7 +128,7 @@ jobs:
           cat > twa-app/app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <style name="Theme.App" parent="Theme.AppCompat.Light.NoActionBar">
+              <style name="Theme.App" parent="Theme.AppCompat.NoActionBar">
                   <item name="android:windowBackground">#0a0a0f</item>
               </style>
           </resources>
