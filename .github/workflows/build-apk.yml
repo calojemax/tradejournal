@@ -27,10 +27,34 @@ jobs:
       - name: Install SDK components
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Download app icon
+        run: |
+          curl -L "https://calojemax.github.io/tradejournal/icons/icon-192.png" -o icon.png 2>/dev/null || true
+          ls -la icon.png 2>/dev/null || echo "Icon download failed, will use default"
+
       - name: Create TWA Android Project
         run: |
+          mkdir -p twa-app/app/src/main/res/mipmap-mdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-hdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xhdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xxhdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xxxhdpi
           mkdir -p twa-app/app/src/main/res/values
           mkdir -p twa-app/app/src/main/java/com/tradelog/app
+
+          # Copy icons to all densities
+          if [ -f icon.png ]; then
+            python3 << 'PYEOF'
+          from PIL import Image
+          import shutil
+          sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+          img = Image.open('icon.png').convert('RGBA')
+          for density, size in sizes.items():
+              resized = img.resize((size, size), Image.LANCZOS)
+              resized.save(f'twa-app/app/src/main/res/mipmap-{density}/ic_launcher.png', 'PNG')
+              print(f'Created {density} icon {size}x{size}')
+          PYEOF
+          fi
 
           cat > twa-app/settings.gradle << 'EOF'
           rootProject.name = "TradeLog"
@@ -72,8 +96,8 @@ jobs:
                   applicationId "com.tradelog.app"
                   minSdk 21
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0.0"
+                  versionCode 2
+                  versionName "1.0.1"
               }
               buildTypes {
                   release { minifyEnabled false }
@@ -94,6 +118,7 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
                   android:label="TradeLog"
+                  android:icon="@mipmap/ic_launcher"
                   android:theme="@style/Theme.App">
                   <activity
                       android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
@@ -101,6 +126,15 @@ jobs:
                       <meta-data
                           android:name="android.support.customtabs.trusted.DEFAULT_URL"
                           android:value="https://calojemax.github.io/tradejournal/" />
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+                          android:resource="@color/colorPrimary" />
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
+                          android:resource="@mipmap/ic_launcher"/>
+                      <meta-data
+                          android:name="android.support.customtabs.trusted.SPLASH_SCREEN_BACKGROUND_COLOR"
+                          android:resource="@color/colorPrimary"/>
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -131,6 +165,13 @@ jobs:
               <style name="Theme.App" parent="Theme.AppCompat.NoActionBar">
                   <item name="android:windowBackground">#0a0a0f</item>
               </style>
+          </resources>
+          EOF
+
+          cat > twa-app/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="colorPrimary">#0a0a0f</color>
           </resources>
           EOF
 
