@@ -16,6 +16,8 @@
   }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -570,8 +572,8 @@
         <label>Grafik / Setup Görseli</label>
         <div id="screenshot-drop-area" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:var(--surface2);transition:border-color 0.2s" onclick="document.getElementById('f-screenshot').click()">
           <div id="screenshot-preview" style="display:none">
-            <img id="screenshot-img" style="max-width:100%;border-radius:8px;margin-bottom:8px" alt="Screenshot">
-            <div style="font-size:11px;color:var(--muted)">Değiştirmek için tekrar tıkla</div>
+            <img id="screenshot-img" style="max-width:100%;border-radius:8px;margin-bottom:8px;cursor:pointer" alt="Screenshot" onclick="if(screenshotData) openCropModal(screenshotData)">
+            <div style="font-size:11px;color:var(--muted)">Kırpmak için görsele tıkla</div>
           </div>
           <div id="screenshot-placeholder">
             <div style="font-size:28px;margin-bottom:6px">📷</div>
@@ -581,70 +583,6 @@
         </div>
         <input type="file" id="f-screenshot" accept="image/*" style="display:none" onchange="handleScreenshot(this)">
         <button type="button" id="screenshot-remove-btn" style="display:none;width:100%;margin-top:6px;padding:7px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:11px;font-family:'Space Mono',monospace;cursor:pointer" onclick="removeScreenshot()">✕ Görseli Kaldır</button>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <div class="form-title">⚠️ Yapılan Hatalar</div>
-      <div class="form-group">
-        <label>Hata Etiketleri <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(birden fazla seçilebilir)</span></label>
-        <div style="margin-top:8px" id="mistake-list">
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Hatasız">
-            <span class="mistake-name" style="color:var(--green)">✓ Hatasız</span>
-            <span class="mistake-desc" style="color:var(--muted)">Mükemmel uygulama</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="FOMO">
-            <span class="mistake-name">FOMO</span>
-            <span class="mistake-desc">Kaçırma korkusuyla girilen trade</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Erken Çıkış">
-            <span class="mistake-name">Erken Çıkış</span>
-            <span class="mistake-desc">Hedef beklemeden çıkıldı</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Geç Çıkış">
-            <span class="mistake-name">Geç Çıkış</span>
-            <span class="mistake-desc">Stop veya hedefi kaçırdın</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Overtrading">
-            <span class="mistake-name">Overtrading</span>
-            <span class="mistake-desc">Çok fazla trade</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Plansız">
-            <span class="mistake-name">Plansız</span>
-            <span class="mistake-desc">Plan olmadan girilen trade</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="İntikam">
-            <span class="mistake-name">İntikam</span>
-            <span class="mistake-desc">Kayıptan sonra intikam tradesi</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Yanlis Pozisyon">
-            <span class="mistake-name">Yanlış Pozisyon</span>
-            <span class="mistake-desc">Pozisyon boyutu hatalı</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Stop Yok Sayildi">
-            <span class="mistake-name">Stop Yok Sayıldı</span>
-            <span class="mistake-desc">Stop loss taşındı/kaldırıldı</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Duygusal">
-            <span class="mistake-name">Duygusal</span>
-            <span class="mistake-desc">Duygusal karar</span>
-            <span class="mistake-plus">+</span>
-          </div>
-          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Kotu Zamanlama">
-            <span class="mistake-name">Kötü Zamanlama</span>
-            <span class="mistake-desc">Yanlış zaman diliminde giriş</span>
-            <span class="mistake-plus">+</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -768,12 +706,87 @@
       </div>
 
       <div class="form-group" style="margin-bottom:11px">
+        <label>⚠️ Yapılan Hatalar <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(birden fazla seçilebilir)</span></label>
+        <div style="margin-top:8px" id="mistake-list">
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Hatasız">
+            <span class="mistake-name" style="color:var(--green)">✓ Hatasız</span>
+            <span class="mistake-desc" style="color:var(--muted)">Mükemmel uygulama</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="FOMO">
+            <span class="mistake-name">FOMO</span>
+            <span class="mistake-desc">Kaçırma korkusuyla girilen trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Erken Çıkış">
+            <span class="mistake-name">Erken Çıkış</span>
+            <span class="mistake-desc">Hedef beklemeden çıkıldı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Geç Çıkış">
+            <span class="mistake-name">Geç Çıkış</span>
+            <span class="mistake-desc">Stop veya hedefi kaçırdın</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Overtrading">
+            <span class="mistake-name">Overtrading</span>
+            <span class="mistake-desc">Çok fazla trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Plansız">
+            <span class="mistake-name">Plansız</span>
+            <span class="mistake-desc">Plan olmadan girilen trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="İntikam">
+            <span class="mistake-name">İntikam</span>
+            <span class="mistake-desc">Kayıptan sonra intikam tradesi</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Yanlış Pozisyon">
+            <span class="mistake-name">Yanlış Pozisyon</span>
+            <span class="mistake-desc">Pozisyon boyutu hatalı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Stop Yok Sayıldı">
+            <span class="mistake-name">Stop Yok Sayıldı</span>
+            <span class="mistake-desc">Stop loss taşındı/kaldırıldı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Duygusal">
+            <span class="mistake-name">Duygusal</span>
+            <span class="mistake-desc">Duygusal karar</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Kötü Zamanlama">
+            <span class="mistake-name">Kötü Zamanlama</span>
+            <span class="mistake-desc">Yanlış zaman diliminde giriş</span>
+            <span class="mistake-plus">+</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:11px">
         <label>Kapanış Notu</label>
         <textarea id="cf-note" placeholder="Ne öğrendin? Neyi farklı yapardın?" style="height:70px"></textarea>
       </div>
 
       <button class="btn-confirm-close" onclick="closeTrade()">KAYDET & KAPAT ✓</button>
     </div>
+  </div>
+</div>
+
+<!-- CROP MODAL -->
+<div id="crop-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.95);flex-direction:column">
+  <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+    <span style="font-weight:700;font-size:15px">✂️ Görseli Kırp</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="cancelCrop()" style="padding:8px 16px;background:transparent;border:1px solid var(--muted);color:var(--muted);border-radius:8px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer">İPTAL</button>
+      <button onclick="confirmCrop()" style="padding:8px 16px;background:var(--accent);border:none;color:var(--bg);border-radius:8px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer">✓ UYGULA</button>
+    </div>
+  </div>
+  <div style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px">
+    <img id="crop-image" style="max-width:100%;max-height:100%">
   </div>
 </div>
 
@@ -990,14 +1003,55 @@ function handleScreenshot(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    screenshotData = e.target.result;
-    document.getElementById('screenshot-img').src = screenshotData;
-    document.getElementById('screenshot-preview').style.display = 'block';
-    document.getElementById('screenshot-placeholder').style.display = 'none';
-    document.getElementById('screenshot-remove-btn').style.display = 'block';
-    document.getElementById('screenshot-drop-area').style.borderColor = 'var(--accent)';
+    openCropModal(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+let cropperInstance = null;
+
+function openCropModal(src) {
+  const modal = document.getElementById('crop-modal');
+  modal.style.display = 'flex';
+  const img = document.getElementById('crop-image');
+  img.src = src;
+  // Destroy previous cropper if exists
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  // Init cropper after image loads
+  img.onload = () => {
+    cropperInstance = new Cropper(img, {
+      viewMode: 1,
+      dragMode: 'move',
+      autoCropArea: 1,
+      restore: false,
+      guides: true,
+      center: true,
+      highlight: false,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+      background: false,
+    });
+  };
+}
+
+function confirmCrop() {
+  if (!cropperInstance) return;
+  const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920, imageSmoothingQuality: 'high' });
+  screenshotData = canvas.toDataURL('image/jpeg', 0.85);
+  document.getElementById('screenshot-img').src = screenshotData;
+  document.getElementById('screenshot-preview').style.display = 'block';
+  document.getElementById('screenshot-placeholder').style.display = 'none';
+  document.getElementById('screenshot-remove-btn').style.display = 'block';
+  document.getElementById('screenshot-drop-area').style.borderColor = 'var(--accent)';
+  cropperInstance.destroy(); cropperInstance = null;
+  document.getElementById('crop-modal').style.display = 'none';
+}
+
+function cancelCrop() {
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  document.getElementById('crop-modal').style.display = 'none';
+  document.getElementById('f-screenshot').value = '';
 }
 
 function removeScreenshot() {
@@ -1200,6 +1254,10 @@ function openCloseModal(id) {
   document.getElementById('close-calc-box').className = 'calc-box';
   document.getElementById('close-calc-box').innerHTML = '<div class="calc-empty">Kapanış fiyatı gir → P&L ve sonuç otomatik hesaplanır</div>';
 
+  // Reset mistakes
+  selectedMistakes = [];
+  document.querySelectorAll('#mistake-list .mistake-item').forEach(m => m.classList.remove('selected'));
+
   showDetail(id, true);
 }
 
@@ -1290,6 +1348,7 @@ function closeTrade() {
     exitPrice,
     exitDate: document.getElementById('cf-date').value,
     closeNote: document.getElementById('cf-note').value.trim(),
+    mistakes: [...selectedMistakes],
     review: { ...cfReview }
   });
 
