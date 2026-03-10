@@ -27,10 +27,13 @@ jobs:
       - name: Install SDK components
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Install imagemagick
+        run: sudo apt-get install -y imagemagick
+
       - name: Download app icon
         run: |
-          curl -L "https://calojemax.github.io/tradejournal/icons/icon-192.png" -o icon.png 2>/dev/null || true
-          ls -la icon.png 2>/dev/null || echo "Icon download failed, will use default"
+          curl -L "https://calojemax.github.io/tradejournal/icons/icon-512.png" -o icon.png 2>/dev/null
+          ls -la icon.png
 
       - name: Create TWA Android Project
         run: |
@@ -42,19 +45,12 @@ jobs:
           mkdir -p twa-app/app/src/main/res/values
           mkdir -p twa-app/app/src/main/java/com/tradelog/app
 
-          # Copy icons to all densities
-          if [ -f icon.png ]; then
-            python3 << 'PYEOF'
-          from PIL import Image
-          import shutil
-          sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
-          img = Image.open('icon.png').convert('RGBA')
-          for density, size in sizes.items():
-              resized = img.resize((size, size), Image.LANCZOS)
-              resized.save(f'twa-app/app/src/main/res/mipmap-{density}/ic_launcher.png', 'PNG')
-              print(f'Created {density} icon {size}x{size}')
-          PYEOF
-          fi
+          # Resize icon with imagemagick
+          convert icon.png -resize 48x48 twa-app/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          convert icon.png -resize 72x72 twa-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          convert icon.png -resize 96x96 twa-app/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          convert icon.png -resize 144x144 twa-app/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          convert icon.png -resize 192x192 twa-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
           cat > twa-app/settings.gradle << 'EOF'
           rootProject.name = "TradeLog"
