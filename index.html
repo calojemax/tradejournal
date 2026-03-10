@@ -181,6 +181,18 @@
   .t3-btn.active-no { background: var(--red); color: var(--text); }
   .t3-btn.active-partial { background: var(--orange); color: var(--bg); }
 
+  .quality-btn {
+    font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 8px 4px; border-radius: 8px; cursor: pointer; text-align: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); transition: all 0.15s; line-height: 1.3;
+  }
+  .quality-btn.active-aplus { background: rgba(0,255,136,0.2); border-color: var(--green); color: var(--green); }
+  .quality-btn.active-a { background: rgba(0,229,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .quality-btn.active-b { background: rgba(255,149,0,0.15); border-color: var(--orange); color: var(--orange); }
+  .quality-btn.active-c { background: rgba(255,61,110,0.15); border-color: var(--red); color: var(--red); }
+  .quality-btn:active { opacity: 0.7; }
+
   .emotion-stars { display: flex; gap: 6px; padding: 6px 0; }
   .star { font-size: 26px; cursor: pointer; filter: grayscale(1) opacity(0.3); flex: 1; text-align: center; transition: all 0.15s; }
   .star.active { filter: none; transform: scale(1.1); }
@@ -322,6 +334,19 @@
   input[type="number"] { -moz-appearance: textfield; }
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .mistake-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 7px; cursor: pointer; transition: all 0.15s;
+  }
+  .mistake-item.selected { border-color: var(--red); background: rgba(255,61,110,0.08); }
+  .mistake-item[data-val="Hatasız"].selected { border-color: var(--green); background: rgba(0,255,136,0.08); }
+  .mistake-name { font-weight: 700; font-size: 13px; flex: 0 0 auto; min-width: 110px; }
+  .mistake-desc { font-size: 11px; color: var(--muted); flex: 1; }
+  .mistake-plus { font-size: 18px; color: var(--muted); font-weight: 300; flex: 0 0 auto; }
+  .mistake-item.selected .mistake-plus { color: var(--red); transform: rotate(45deg); display: inline-block; }
+  .mistake-item[data-val="Hatasız"].selected .mistake-plus { color: var(--green); }
 </style>
 </head>
 <body>
@@ -503,12 +528,27 @@
       </div>
       <div class="form-group">
         <label>Duygusal Durum</label>
-        <div class="emotion-stars">
-          <div class="star" data-val="1" onclick="setEmotion(1)">😰</div>
-          <div class="star" data-val="2" onclick="setEmotion(2)">😕</div>
-          <div class="star active" data-val="3" onclick="setEmotion(3)">😐</div>
-          <div class="star" data-val="4" onclick="setEmotion(4)">🙂</div>
-          <div class="star" data-val="5" onclick="setEmotion(5)">😎</div>
+        <select id="f-emotion" style="font-size:14px">
+          <option value="">Duygu seç...</option>
+          <option value="Özgüvenli">😎 Özgüvenli</option>
+          <option value="Nötr">😐 Nötr</option>
+          <option value="Endişeli">😟 Endişeli</option>
+          <option value="Korkulu">😰 Korkulu</option>
+          <option value="Açgözlü">🤑 Açgözlü</option>
+          <option value="Sinirli">😠 Sinirli</option>
+          <option value="Coşkulu">🤩 Coşkulu</option>
+          <option value="Sabırsız">😤 Sabırsız</option>
+          <option value="Sakin">🧘 Sakin</option>
+          <option value="Kararsız">😕 Kararsız</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Setup Kalitesi</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+          <button type="button" class="quality-btn" id="sq-aplus" onclick="setSetupQuality('A+')">A+ Mükemmel</button>
+          <button type="button" class="quality-btn" id="sq-a" onclick="setSetupQuality('A')">A İyi</button>
+          <button type="button" class="quality-btn" id="sq-b" onclick="setSetupQuality('B')">B Orta</button>
+          <button type="button" class="quality-btn" id="sq-c" onclick="setSetupQuality('C')">C Zayıf</button>
         </div>
       </div>
       <div class="form-group">
@@ -521,6 +561,90 @@
       <div class="form-group">
         <label>Giriş Notu</label>
         <textarea id="f-note" placeholder="Neden girdin? Hangi sinyali gördün?"></textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">📸 Trade Screenshot</div>
+      <div class="form-group">
+        <label>Grafik / Setup Görseli</label>
+        <div id="screenshot-drop-area" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:var(--surface2);transition:border-color 0.2s" onclick="document.getElementById('f-screenshot').click()">
+          <div id="screenshot-preview" style="display:none">
+            <img id="screenshot-img" style="max-width:100%;border-radius:8px;margin-bottom:8px" alt="Screenshot">
+            <div style="font-size:11px;color:var(--muted)">Değiştirmek için tekrar tıkla</div>
+          </div>
+          <div id="screenshot-placeholder">
+            <div style="font-size:28px;margin-bottom:6px">📷</div>
+            <div style="font-size:13px;color:var(--muted)">Görsel ekle</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">JPG, PNG</div>
+          </div>
+        </div>
+        <input type="file" id="f-screenshot" accept="image/*" style="display:none" onchange="handleScreenshot(this)">
+        <button type="button" id="screenshot-remove-btn" style="display:none;width:100%;margin-top:6px;padding:7px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:11px;font-family:'Space Mono',monospace;cursor:pointer" onclick="removeScreenshot()">✕ Görseli Kaldır</button>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">⚠️ Yapılan Hatalar</div>
+      <div class="form-group">
+        <label>Hata Etiketleri <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(birden fazla seçilebilir)</span></label>
+        <div style="margin-top:8px" id="mistake-list">
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Hatasız">
+            <span class="mistake-name" style="color:var(--green)">✓ Hatasız</span>
+            <span class="mistake-desc" style="color:var(--muted)">Mükemmel uygulama</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="FOMO">
+            <span class="mistake-name">FOMO</span>
+            <span class="mistake-desc">Kaçırma korkusuyla girilen trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Erken Çıkış">
+            <span class="mistake-name">Erken Çıkış</span>
+            <span class="mistake-desc">Hedef beklemeden çıkıldı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Geç Çıkış">
+            <span class="mistake-name">Geç Çıkış</span>
+            <span class="mistake-desc">Stop veya hedefi kaçırdın</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Overtrading">
+            <span class="mistake-name">Overtrading</span>
+            <span class="mistake-desc">Çok fazla trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Plansız">
+            <span class="mistake-name">Plansız</span>
+            <span class="mistake-desc">Plan olmadan girilen trade</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="İntikam">
+            <span class="mistake-name">İntikam</span>
+            <span class="mistake-desc">Kayıptan sonra intikam tradesi</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Yanlis Pozisyon">
+            <span class="mistake-name">Yanlış Pozisyon</span>
+            <span class="mistake-desc">Pozisyon boyutu hatalı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Stop Yok Sayildi">
+            <span class="mistake-name">Stop Yok Sayıldı</span>
+            <span class="mistake-desc">Stop loss taşındı/kaldırıldı</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Duygusal">
+            <span class="mistake-name">Duygusal</span>
+            <span class="mistake-desc">Duygusal karar</span>
+            <span class="mistake-plus">+</span>
+          </div>
+          <div class="mistake-item" onclick="toggleMistake(this)" data-val="Kotu Zamanlama">
+            <span class="mistake-name">Kötü Zamanlama</span>
+            <span class="mistake-desc">Yanlış zaman diliminde giriş</span>
+            <span class="mistake-plus">+</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -659,12 +783,15 @@
 // v3 uses its own clean key - no migration from old test data
 let trades = JSON.parse(localStorage.getItem('tradelog_v3') || '[]');
 let selectedDir = 'long';
-let selectedTradeStatus = 'open'; // 'open' or 'closed'
+let selectedTradeStatus = 'open';
 let entryOutcome = null;
 let entryPnl = null;
 let selectedOutcome = null;
-let selectedEmotion = 3;
+let selectedEmotion = '';
 let selectedPlan = null;
+let selectedSetupQuality = null;
+let selectedMistakes = [];
+let screenshotData = null;
 let currentFilter = 'all';
 let cfOutcome = null;
 let cfPnl = null;
@@ -676,7 +803,6 @@ function init() {
   const now = new Date();
   document.getElementById('f-date').value = now.toISOString().slice(0,10);
   document.getElementById('f-time').value = now.toTimeString().slice(0,5);
-  setEmotion(3);
   renderTradeList();
   updateStats();
 }
@@ -828,6 +954,62 @@ function setEmotion(val) {
   document.querySelectorAll('.star').forEach((s,i) => s.classList.toggle('active', i < val));
 }
 
+function setSetupQuality(q) {
+  selectedSetupQuality = q;
+  const map = {'A+':'aplus','A':'a','B':'b','C':'c'};
+  ['A+','A','B','C'].forEach(v => {
+    const btn = document.getElementById('sq-' + map[v]);
+    if (btn) btn.className = 'quality-btn' + (v === q ? ' active-' + map[v] : '');
+  });
+}
+
+function toggleMistake(el) {
+  const val = el.dataset.val;
+  if (val === 'Hatasız') {
+    // Clear all others, toggle only Hatasız
+    document.querySelectorAll('.mistake-item').forEach(m => m.classList.remove('selected'));
+    selectedMistakes = el.classList.toggle('selected') ? ['Hatasız'] : [];
+    if (!el.classList.contains('selected')) selectedMistakes = [];
+    return;
+  }
+  // Remove Hatasız if selecting an error
+  const hatasizEl = document.querySelector('.mistake-item[data-val="Hatasız"]');
+  if (hatasizEl) hatasizEl.classList.remove('selected');
+  selectedMistakes = selectedMistakes.filter(m => m !== 'Hatasız');
+
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) {
+    if (!selectedMistakes.includes(val)) selectedMistakes.push(val);
+  } else {
+    selectedMistakes = selectedMistakes.filter(m => m !== val);
+  }
+}
+
+function handleScreenshot(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    screenshotData = e.target.result;
+    document.getElementById('screenshot-img').src = screenshotData;
+    document.getElementById('screenshot-preview').style.display = 'block';
+    document.getElementById('screenshot-placeholder').style.display = 'none';
+    document.getElementById('screenshot-remove-btn').style.display = 'block';
+    document.getElementById('screenshot-drop-area').style.borderColor = 'var(--accent)';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeScreenshot() {
+  screenshotData = null;
+  document.getElementById('f-screenshot').value = '';
+  document.getElementById('screenshot-img').src = '';
+  document.getElementById('screenshot-preview').style.display = 'none';
+  document.getElementById('screenshot-placeholder').style.display = 'block';
+  document.getElementById('screenshot-remove-btn').style.display = 'none';
+  document.getElementById('screenshot-drop-area').style.borderColor = 'var(--border)';
+}
+
 function setPlan(p) {
   selectedPlan = p;
   document.getElementById('plan-yes').classList.toggle('active', p === 'yes');
@@ -923,6 +1105,7 @@ function saveTrade() {
 
   const strategies = getSelectedStrategies();
   const tradeNumber = parseInt(document.getElementById('f-trade-number').value) || null;
+  const emotionVal = document.getElementById('f-emotion').value || null;
 
   const trade = {
     id: editingTradeId || Date.now(),
@@ -940,7 +1123,10 @@ function saveTrade() {
     exitPrice,
     exitDate,
     strategies,
-    emotion: selectedEmotion,
+    emotion: emotionVal,
+    setupQuality: selectedSetupQuality,
+    mistakes: [...selectedMistakes],
+    screenshot: screenshotData,
     planFollowed: selectedPlan,
     note: document.getElementById('f-note').value.trim(),
     createdAt: editingTradeId ? trades.find(t=>t.id===editingTradeId)?.createdAt : new Date().toISOString(),
@@ -967,11 +1153,17 @@ function resetForm() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  document.getElementById('f-emotion').value = '';
   document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
   document.getElementById('f-exit-date').value = '';
   document.getElementById('strategy-other-field').style.display = 'none';
   const fibFieldReset = document.getElementById('strategy-fib-field'); if(fibFieldReset) fibFieldReset.style.display = 'none';
   document.querySelectorAll('.fib-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mistake-item').forEach(m => m.classList.remove('selected'));
+  document.querySelectorAll('.quality-btn').forEach(b => b.className = 'quality-btn');
+  selectedMistakes = [];
+  selectedSetupQuality = null;
+  removeScreenshot();
   selectedOutcome = null;
   selectedPlan = null;
   selectedTradeStatus = 'open';
@@ -986,7 +1178,6 @@ function resetForm() {
   document.getElementById('entry-calc-box').innerHTML = '<div class="calc-empty">Çıkış fiyatı gir → Sonuç ve P&L otomatik hesaplanır</div>';
   
   setDir('long');
-  setEmotion(3);
   setTradeStatus('open');
   recalc();
 }
@@ -1215,7 +1406,8 @@ function showDetail(id, openClose = false) {
       const strats = Array.isArray(t.strategies) ? t.strategies : t.strategy ? [t.strategy] : [];
       return strats.length ? ['Strateji', strats.join(' + ')] : null;
     })(),
-    ['Duygu', eMap[t.emotion]],
+    t.setupQuality ? ['Setup Kalitesi', t.setupQuality] : null,
+    ['Duygu', t.emotion || '—'],
     t.planFollowed ? ['Plan (Giriş)', t.planFollowed==='yes'?'✓ Plan dahili':'✗ Plansız'] : null,
     t.note ? ['Giriş Notu', t.note] : null,
   ];
@@ -1228,12 +1420,24 @@ function showDetail(id, openClose = false) {
     if (t.closeNote) rows.push(['Kapanış Notu', t.closeNote]);
   }
 
+  if (t.mistakes && t.mistakes.length > 0) {
+    rows.push('__sep2__');
+    rows.push(['Yapılan Hatalar', t.mistakes.join(', ')]);
+  }
+
   document.getElementById('modal-title').textContent = `${t.symbol} — ${t.date}`;
-  document.getElementById('modal-body').innerHTML = rows.filter(Boolean).map(r => {
+  let bodyHtml = rows.filter(Boolean).map(r => {
     if (r === '__sep__') return `<div class="section-sep" style="color:var(--accent)">── Kapanış Değerlendirmesi</div>`;
+    if (r === '__sep2__') return `<div class="section-sep" style="color:var(--red)">── Hatalar</div>`;
     const [k,v] = r;
     return `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`;
   }).join('');
+
+  if (t.screenshot) {
+    bodyHtml += `<div style="margin-top:14px"><div class="section-sep" style="color:var(--muted);margin-bottom:8px">── Screenshot</div><img src="${t.screenshot}" style="width:100%;border-radius:10px;border:1px solid var(--border)" alt="Trade Screenshot"></div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = bodyHtml;
 
   document.getElementById('close-form').style.display = (t.isOpen || openClose) ? 'block' : 'none';
   if (openClose) activeCloseId = id;
@@ -1269,8 +1473,23 @@ function editTrade(e, id) {
   
   setSelectedStrategies(t.strategies || t.strategy || []);
   setDir(t.direction || 'long');
-  setEmotion(t.emotion || 3);
+  if (t.emotion) document.getElementById('f-emotion').value = t.emotion;
   if (t.planFollowed) setPlan(t.planFollowed);
+  if (t.setupQuality) setSetupQuality(t.setupQuality);
+  // Restore mistakes
+  selectedMistakes = t.mistakes ? [...t.mistakes] : [];
+  document.querySelectorAll('.mistake-item').forEach(m => {
+    m.classList.toggle('selected', selectedMistakes.includes(m.dataset.val));
+  });
+  // Restore screenshot
+  if (t.screenshot) {
+    screenshotData = t.screenshot;
+    document.getElementById('screenshot-img').src = t.screenshot;
+    document.getElementById('screenshot-preview').style.display = 'block';
+    document.getElementById('screenshot-placeholder').style.display = 'none';
+    document.getElementById('screenshot-remove-btn').style.display = 'block';
+    document.getElementById('screenshot-drop-area').style.borderColor = 'var(--accent)';
+  }
   
   if (t.isOpen) {
     setTradeStatus('open');
@@ -1391,18 +1610,21 @@ function exportToExcel() {
       'Sembol':t.symbol, 'Piyasa':t.market,
       'Yön':t.direction==='long'?'Long':'Short', 'Zaman Dilimi':t.timeframe,
       'Strateji':strats,
+      'Setup Kalitesi':t.setupQuality||'',
       'Giriş':t.entry||'', 'SL':t.sl||'', 'TP':t.tp||'',
       'Çıkış Fiyatı':t.exitPrice||'', 'Çıkış Tarihi':t.exitDate||t.exitTime||'',
       'Pozisyon ($)':t.posSize||'', 'Risk ($)':risk, 'Hedef Kâr ($)':tpUsd, 'R:R':t.rr?`1:${t.rr}`:'',
       'Sonuç':t.isOpen?'Açık':t.outcome==='win'?'Kazanç':t.outcome==='loss'?'Kayıp':'Başabaş',
       'P&L ($)':t.pnl!==null?t.pnl:'',
-      'Duygu':eMap[t.emotion]||'',
+      'Duygu':t.emotion||'',
+      'Yapılan Hatalar':t.mistakes&&t.mistakes.length?t.mistakes.join(', '):'',
       'Plan Uyumu (Giriş)':t.planFollowed==='yes'?'Evet':t.planFollowed==='no'?'Hayır':'',
       'Giriş Notu':t.note||'',
       'Tekrar Alır Mıydın?':t.review?.again?rAgain[t.review.again]:'',
       'Çıkış Zamanlaması':t.review?.exit?rExit[t.review.exit]:'',
       'Kapanış Plan Uyumu':t.review?.plan?rPlan[t.review.plan]:'',
       'Kapanış Notu':t.closeNote||'',
+      'Screenshot':t.screenshot?'Var':'',
     };
   });
 
