@@ -792,6 +792,62 @@
   </div>
 </div>
 
+<!-- ADD POSITION MODAL -->
+<div class="modal-overlay" id="add-position-modal" onclick="closeAddPositionModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ Kademe Ekle</div>
+    <div id="add-position-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--muted)"></div>
+    <div class="form-group">
+      <label>Yeni Giriş Fiyatı</label>
+      <input type="number" id="ap-price" placeholder="0.00" step="any" oninput="recalcAddPosition()">
+    </div>
+    <div class="form-group">
+      <label>Ek Pozisyon Büyüklüğü ($)</label>
+      <input type="number" id="ap-size" placeholder="Örn: 500" step="any" oninput="recalcAddPosition()">
+    </div>
+    <div class="form-group">
+      <label>Tarih</label>
+      <input type="date" id="ap-date">
+    </div>
+    <div class="calc-box" id="ap-calc" style="margin-bottom:16px">
+      <div class="calc-empty">Fiyat ve miktar gir → yeni ortalama hesaplanır</div>
+    </div>
+    <button class="btn-confirm-close" style="background:var(--accent)" onclick="confirmAddPosition()">KADEME EKLE ✓</button>
+  </div>
+</div>
+
+<!-- PARTIAL CLOSE MODAL -->
+<div class="modal-overlay" id="partial-close-modal" onclick="closePartialCloseModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📤 Kısmi Çıkış</div>
+    <div id="partial-close-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--muted)"></div>
+    <div class="row-2">
+      <div class="form-group">
+        <label>Çıkış Fiyatı</label>
+        <input type="number" id="pc-price" placeholder="0.00" step="any" oninput="recalcPartialClose()">
+      </div>
+      <div class="form-group">
+        <label>Tarih</label>
+        <input type="date" id="pc-date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Kapatılan Miktar ($)</label>
+      <input type="number" id="pc-size" placeholder="Örn: 500" step="any" oninput="recalcPartialClose()">
+    </div>
+    <div class="calc-box" id="pc-calc" style="margin-bottom:16px">
+      <div class="calc-empty">Fiyat ve miktar gir → kısmi P&L hesaplanır</div>
+    </div>
+    <div class="form-group">
+      <label>Not (opsiyonel)</label>
+      <input type="text" id="pc-note" placeholder="Örn: %50 TP1'de çıkıldı">
+    </div>
+    <button class="btn-confirm-close" onclick="confirmPartialClose()">KISMİ ÇIKIŞ KAYDET ✓</button>
+  </div>
+</div>
+
 <!-- CROP MODAL -->
 <div id="crop-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.95);flex-direction:column">
   <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
@@ -1291,6 +1347,190 @@ function resetForm() {
 }
 
 // ── CLOSE TRADE ──
+// ── ADD POSITION (KADEME) ──
+let activeAddPositionId = null;
+
+function openAddPositionModal(id) {
+  activeAddPositionId = id;
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+
+  const entries = t.entries || [{ price: t.entry, size: t.posSize, date: t.date }];
+  const totalSize = entries.reduce((s, e) => s + (e.size || 0), 0);
+  const avgEntry = t.entry; // already computed
+
+  document.getElementById('add-position-summary').innerHTML =
+    `Ort. Giriş: <span style="color:var(--accent)">${avgEntry}</span>  ·  Toplam Poz: <span style="color:var(--accent)">$${totalSize.toLocaleString()}</span>  ·  Kademeler: <span style="color:var(--accent)">${entries.length}×</span>`;
+
+  document.getElementById('ap-price').value = '';
+  document.getElementById('ap-size').value = '';
+  document.getElementById('ap-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('ap-calc').className = 'calc-box';
+  document.getElementById('ap-calc').innerHTML = '<div class="calc-empty">Fiyat ve miktar gir → yeni ortalama hesaplanır</div>';
+  document.getElementById('add-position-modal').classList.add('open');
+}
+
+function recalcAddPosition() {
+  const t = trades.find(x => x.id === activeAddPositionId);
+  if (!t) return;
+  const newPrice = parseFloat(document.getElementById('ap-price').value);
+  const newSize = parseFloat(document.getElementById('ap-size').value);
+  const box = document.getElementById('ap-calc');
+
+  if (!newPrice || !newSize) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Fiyat ve miktar gir → yeni ortalama hesaplanır</div>';
+    return;
+  }
+
+  const entries = t.entries || [{ price: t.entry, size: t.posSize, date: t.date }];
+  const totalSize = entries.reduce((s, e) => s + (e.size || 0), 0);
+  const weightedSum = entries.reduce((s, e) => s + (e.price * e.size), 0);
+  const newAvg = (weightedSum + newPrice * newSize) / (totalSize + newSize);
+
+  box.className = 'calc-box has-data';
+  box.innerHTML = `
+    <div class="calc-row"><span class="calc-key">Eski Ort. Giriş</span><span class="calc-val">${t.entry}</span></div>
+    <div class="calc-row"><span class="calc-key">Yeni Ort. Giriş</span><span class="calc-val" style="color:var(--accent)">${newAvg.toFixed(4)}</span></div>
+    <div class="calc-row"><span class="calc-key">Toplam Pozisyon</span><span class="calc-val">$${(totalSize + newSize).toLocaleString()}</span></div>
+    <div class="calc-row"><span class="calc-key">Kademe Sayısı</span><span class="calc-val">${entries.length + 1}×</span></div>
+  `;
+}
+
+function confirmAddPosition() {
+  const t = trades.find(x => x.id === activeAddPositionId);
+  if (!t) return;
+  const newPrice = parseFloat(document.getElementById('ap-price').value);
+  const newSize = parseFloat(document.getElementById('ap-size').value);
+  const newDate = document.getElementById('ap-date').value;
+  if (!newPrice || !newSize) { showToast('⚠️ Fiyat ve miktar girin!', 'err'); return; }
+
+  if (!t.entries) t.entries = [{ price: t.entry, size: t.posSize, date: t.date }];
+  t.entries.push({ price: newPrice, size: newSize, date: newDate });
+
+  // Recalc average entry and total size
+  const totalSize = t.entries.reduce((s, e) => s + (e.size || 0), 0);
+  const newAvg = t.entries.reduce((s, e) => s + e.price * e.size, 0) / totalSize;
+  t.entry = parseFloat(newAvg.toFixed(6));
+  t.posSize = totalSize;
+
+  saveData();
+  document.getElementById('add-position-modal').classList.remove('open');
+  activeAddPositionId = null;
+  renderTradeList();
+  updateStats();
+  showToast('✓ Kademe eklendi!');
+}
+
+function closeAddPositionModal(e) {
+  if (e.target === document.getElementById('add-position-modal')) {
+    document.getElementById('add-position-modal').classList.remove('open');
+    activeAddPositionId = null;
+  }
+}
+
+// ── PARTIAL CLOSE (KISMİ ÇIKIŞ) ──
+let activePartialCloseId = null;
+
+function openPartialCloseModal(id) {
+  activePartialCloseId = id;
+  const t = trades.find(x => x.id === id);
+  if (!t) return;
+
+  const partials = t.partialExits || [];
+  const closedSize = partials.reduce((s, p) => s + (p.size || 0), 0);
+  const remainingSize = t.posSize - closedSize;
+  const realizedPnl = partials.reduce((s, p) => s + (p.pnl || 0), 0);
+
+  document.getElementById('partial-close-summary').innerHTML =
+    `Ort. Giriş: <span style="color:var(--accent)">${t.entry}</span>  ·  Kalan Poz: <span style="color:var(--accent)">$${remainingSize.toLocaleString()}</span>` +
+    (partials.length ? `<br>Önceki çıkışlar: <span style="color:var(--green)">${partials.length}× · Realize: ${realizedPnl >= 0 ? '+' : ''}$${realizedPnl.toFixed(2)}</span>` : '');
+
+  document.getElementById('pc-price').value = '';
+  document.getElementById('pc-size').value = remainingSize > 0 ? '' : '';
+  document.getElementById('pc-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('pc-note').value = '';
+  document.getElementById('pc-calc').className = 'calc-box';
+  document.getElementById('pc-calc').innerHTML = '<div class="calc-empty">Fiyat ve miktar gir → kısmi P&L hesaplanır</div>';
+  document.getElementById('partial-close-modal').classList.add('open');
+}
+
+function recalcPartialClose() {
+  const t = trades.find(x => x.id === activePartialCloseId);
+  if (!t) return;
+  const exitPrice = parseFloat(document.getElementById('pc-price').value);
+  const closeSize = parseFloat(document.getElementById('pc-size').value);
+  const box = document.getElementById('pc-calc');
+
+  if (!exitPrice || !closeSize) {
+    box.className = 'calc-box';
+    box.innerHTML = '<div class="calc-empty">Fiyat ve miktar gir → kısmi P&L hesaplanır</div>';
+    return;
+  }
+
+  const priceDiff = t.direction === 'long' ? exitPrice - t.entry : t.entry - exitPrice;
+  const pnl = closeSize * Math.abs(exitPrice - t.entry) / t.entry * (priceDiff >= 0 ? 1 : -1);
+  const isProfit = pnl >= 0;
+
+  const partials = t.partialExits || [];
+  const closedSize = partials.reduce((s, p) => s + (p.size || 0), 0);
+  const remainingAfter = t.posSize - closedSize - closeSize;
+
+  box.className = 'calc-box has-data';
+  box.innerHTML = `
+    <div class="calc-row"><span class="calc-key">Kısmi P&L</span><span class="calc-val ${isProfit ? 'pos' : 'neg'}">${isProfit ? '+' : ''}$${pnl.toFixed(2)}</span></div>
+    <div class="calc-row"><span class="calc-key">Kalan Pozisyon</span><span class="calc-val ${remainingAfter <= 0 ? 'neg' : 'open-col'}">$${Math.max(0, remainingAfter).toLocaleString()}</span></div>
+    ${remainingAfter <= 0 ? '<div class="calc-row"><span class="calc-key" style="color:var(--orange)">⚠️ Pozisyon tamamen kapanır</span><span class="calc-val"></span></div>' : ''}
+  `;
+}
+
+function confirmPartialClose() {
+  const t = trades.find(x => x.id === activePartialCloseId);
+  if (!t) return;
+  const exitPrice = parseFloat(document.getElementById('pc-price').value);
+  const closeSize = parseFloat(document.getElementById('pc-size').value);
+  const date = document.getElementById('pc-date').value;
+  const note = document.getElementById('pc-note').value.trim();
+
+  if (!exitPrice || !closeSize) { showToast('⚠️ Fiyat ve miktar girin!', 'err'); return; }
+
+  const priceDiff = t.direction === 'long' ? exitPrice - t.entry : t.entry - exitPrice;
+  const pnl = closeSize * Math.abs(exitPrice - t.entry) / t.entry * (priceDiff >= 0 ? 1 : -1);
+
+  if (!t.partialExits) t.partialExits = [];
+  t.partialExits.push({ price: exitPrice, size: closeSize, date, pnl: parseFloat(pnl.toFixed(2)), note });
+
+  // Check if fully closed
+  const closedSize = t.partialExits.reduce((s, p) => s + (p.size || 0), 0);
+  const totalPnl = t.partialExits.reduce((s, p) => s + (p.pnl || 0), 0);
+
+  if (closedSize >= t.posSize) {
+    t.isOpen = false;
+    t.pnl = parseFloat(totalPnl.toFixed(2));
+    t.outcome = totalPnl > 0.01 ? 'win' : totalPnl < -0.01 ? 'loss' : 'be';
+    t.exitPrice = exitPrice;
+    t.exitDate = date;
+    showToast('✓ Pozisyon tamamen kapandı!');
+  } else {
+    // Update partial P&L display
+    t.pnl = parseFloat(totalPnl.toFixed(2));
+    showToast(`✓ Kısmi çıkış kaydedildi · Realize: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+  }
+
+  saveData();
+  document.getElementById('partial-close-modal').classList.remove('open');
+  activePartialCloseId = null;
+  renderTradeList();
+  updateStats();
+}
+
+function closePartialCloseModal(e) {
+  if (e.target === document.getElementById('partial-close-modal')) {
+    document.getElementById('partial-close-modal').classList.remove('open');
+    activePartialCloseId = null;
+  }
+}
+
 function openCloseModal(id) {
   activeCloseId = id;
   cfOutcome = null;
@@ -1455,6 +1695,7 @@ function renderTradeList() {
     let calcLine = '';
     if (t.posSize) {
       const parts = [`Poz: $${t.posSize.toLocaleString()}`];
+      if (t.entries && t.entries.length > 1) parts.push(`Ort. Giriş: ${t.entry}  ·  ${t.entries.length}× kademe`);
       if (t.entry && t.sl) {
         const risk = t.posSize * Math.abs((t.sl-t.entry)/t.entry);
         parts.push(`Risk: $${risk.toFixed(0)}`);
@@ -1464,6 +1705,11 @@ function renderTradeList() {
     } else if (t.rr) {
       calcLine = `R:R 1:${t.rr}`;
     }
+
+    // Partial exits summary line
+    const partialLine = (t.partialExits && t.partialExits.length > 0)
+      ? `<div class="card-calc" style="color:var(--accent)">📤 ${t.partialExits.length} kısmi çıkış · Realize: ${t.partialExits.reduce((s,p)=>s+p.pnl,0)>=0?'+':''}$${t.partialExits.reduce((s,p)=>s+p.pnl,0).toFixed(2)}</div>`
+      : '';
 
     return `<div class="trade-card ${isOpen?'open':t.outcome}" onclick="showDetail(${t.id}, false)">
       <div class="card-top">
@@ -1485,8 +1731,14 @@ function renderTradeList() {
         </div>
       </div>
       ${calcLine ? `<div class="card-calc">${calcLine}</div>` : ''}
+      ${partialLine}
       ${t.note ? `<div class="card-note">${t.note.slice(0,90)}${t.note.length>90?'...':''}</div>` : ''}
-      ${isOpen ? `<button class="btn-close-trade" onclick="event.stopPropagation();openCloseModal(${t.id})">🔒 KAPAT & DEĞERLENDİR</button>` : ''}
+      ${isOpen ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
+          <button class="btn-close-trade" style="margin-top:0;font-size:9px;padding:8px 4px" onclick="event.stopPropagation();openAddPositionModal(${t.id})">➕ KADEME</button>
+          <button class="btn-close-trade" style="margin-top:0;font-size:9px;padding:8px 4px;border-color:var(--accent);color:var(--accent)" onclick="event.stopPropagation();openPartialCloseModal(${t.id})">📤 KISMİ ÇIKIŞ</button>
+          <button class="btn-close-trade" style="margin-top:0;font-size:9px;padding:8px 4px" onclick="event.stopPropagation();openCloseModal(${t.id})">🔒 TAM KAPAT</button>
+        </div>` : ''}
       <button class="delete-btn" onclick="deleteTrade(event,${t.id})" style="right:50px">🗑</button>
       <button class="delete-btn" onclick="editTrade(event,${t.id})" style="right:12px">✏️</button>
     </div>`;
@@ -1515,7 +1767,7 @@ function showDetail(id, openClose = false) {
     t.rr ? ['R:R Oranı', `1 : ${t.rr}`] : null,
     ['Zaman Dilimi', t.timeframe],
     ['Piyasa', t.market],
-    t.entry ? ['Giriş', t.entry] : null,
+    t.entry ? ['Giriş', t.entries && t.entries.length > 1 ? `${t.entry} <span style="color:var(--muted);font-size:11px">(${t.entries.length}× ort.)</span>` : t.entry] : null,
     t.sl ? ['Stop Loss', t.sl] : null,
     t.tp ? ['Take Profit', t.tp] : null,
     t.exitPrice ? ['Çıkış Fiyatı', t.exitPrice] : null,
@@ -1529,6 +1781,22 @@ function showDetail(id, openClose = false) {
     t.planFollowed ? ['Plan (Giriş)', t.planFollowed==='yes'?'✓ Plan dahili':'✗ Plansız'] : null,
     t.note ? ['Giriş Notu', t.note] : null,
   ];
+
+  // Kademe detayları
+  if (t.entries && t.entries.length > 1) {
+    rows.push('__sep_entries__');
+    t.entries.forEach((e, i) => rows.push([`Kademe ${i+1}`, `${e.price}  ·  $${e.size?.toLocaleString()}  ·  ${e.date}`]));
+  }
+
+  // Kısmi çıkış detayları
+  if (t.partialExits && t.partialExits.length > 0) {
+    rows.push('__sep_partials__');
+    t.partialExits.forEach((p, i) => {
+      rows.push([`Kısmi Çıkış ${i+1}`, `${p.price}  ·  $${p.size?.toLocaleString()}  ·  <span class="${p.pnl>=0?'pos':'neg'}">${p.pnl>=0?'+':''}$${p.pnl.toFixed(2)}</span>${p.note?' · '+p.note:''}`]);
+    });
+    const totalRealized = t.partialExits.reduce((s,p)=>s+p.pnl, 0);
+    rows.push(['Toplam Realize', `<span class="${totalRealized>=0?'pos':'neg'}">${totalRealized>=0?'+':''}$${totalRealized.toFixed(2)}</span>`]);
+  }
 
   if (!t.isOpen && t.review && (t.review.again || t.review.exit || t.review.plan || t.closeNote)) {
     rows.push('__sep__');
@@ -1547,6 +1815,8 @@ function showDetail(id, openClose = false) {
   let bodyHtml = rows.filter(Boolean).map(r => {
     if (r === '__sep__') return `<div class="section-sep" style="color:var(--accent)">── Kapanış Değerlendirmesi</div>`;
     if (r === '__sep2__') return `<div class="section-sep" style="color:var(--red)">── Hatalar</div>`;
+    if (r === '__sep_entries__') return `<div class="section-sep" style="color:var(--accent)">── Kademeler</div>`;
+    if (r === '__sep_partials__') return `<div class="section-sep" style="color:var(--accent)">── Kısmi Çıkışlar</div>`;
     const [k,v] = r;
     return `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`;
   }).join('');
