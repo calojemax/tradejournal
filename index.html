@@ -884,12 +884,114 @@ let cfReview = { again: null, exit: null, plan: null };
 let activeCloseId = null;
 let editingTradeId = null;
 
+// ── TASLAK OTOMATİK KAYIT ──
+const DRAFT_KEY = 'tradelog_draft';
+
+function saveDraft() {
+  if (editingTradeId) return; // Düzenleme modunda taslak kaydetme
+  const draft = {
+    symbol: document.getElementById('f-symbol').value,
+    date: document.getElementById('f-date').value,
+    time: document.getElementById('f-time').value,
+    tradeNumber: document.getElementById('f-trade-number').value,
+    entry: document.getElementById('f-entry').value,
+    sl: document.getElementById('f-sl').value,
+    tp: document.getElementById('f-tp').value,
+    posSize: document.getElementById('f-possize').value,
+    note: document.getElementById('f-note').value,
+    exit: document.getElementById('f-exit').value,
+    exitDate: document.getElementById('f-exit-date').value,
+    tf: document.getElementById('f-tf').value,
+    market: document.getElementById('f-market').value,
+    emotion: document.getElementById('f-emotion').value,
+    otherText: document.getElementById('strategy-other-text').value,
+    fibLevel: document.getElementById('fib-level-custom').value,
+    dir: selectedDir,
+    tradeStatus: selectedTradeStatus,
+    plan: selectedPlan,
+    setupQuality: selectedSetupQuality,
+    strategies: getSelectedStrategies(),
+    emotion_val: document.getElementById('f-emotion').value,
+  };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function loadDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (!d.symbol && !d.entry && !d.note) return; // Boş taslak, yükleme
+    
+    // Taslak bildir
+    const banner = document.createElement('div');
+    banner.id = 'draft-banner';
+    banner.style.cssText = 'background:rgba(255,149,0,0.15);border:1px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--orange)';
+    banner.innerHTML = `<span>📝 Kaydedilmemiş taslak var</span><div style="display:flex;gap:8px"><button onclick="applyDraft()" style="background:var(--orange);color:var(--bg);border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'Space Mono',monospace;cursor:pointer">DEVAM ET</button><button onclick="discardDraft()" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;font-family:'Space Mono',monospace;cursor:pointer">SİL</button></div>`;
+    const content = document.getElementById('page-add');
+    content.insertBefore(banner, content.firstChild);
+  } catch(e) {}
+}
+
+function applyDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (d.symbol) document.getElementById('f-symbol').value = d.symbol;
+    if (d.date) document.getElementById('f-date').value = d.date;
+    if (d.time) document.getElementById('f-time').value = d.time;
+    if (d.tradeNumber) document.getElementById('f-trade-number').value = d.tradeNumber;
+    if (d.entry) document.getElementById('f-entry').value = d.entry;
+    if (d.sl) document.getElementById('f-sl').value = d.sl;
+    if (d.tp) document.getElementById('f-tp').value = d.tp;
+    if (d.posSize) document.getElementById('f-possize').value = d.posSize;
+    if (d.note) document.getElementById('f-note').value = d.note;
+    if (d.tf) document.getElementById('f-tf').value = d.tf;
+    if (d.market) document.getElementById('f-market').value = d.market;
+    if (d.emotion_val) document.getElementById('f-emotion').value = d.emotion_val;
+    if (d.otherText) document.getElementById('strategy-other-text').value = d.otherText;
+    if (d.fibLevel) document.getElementById('fib-level-custom').value = d.fibLevel;
+    if (d.dir) setDir(d.dir);
+    if (d.plan) setPlan(d.plan);
+    if (d.setupQuality) setSetupQuality(d.setupQuality);
+    if (d.tradeStatus) setTradeStatus(d.tradeStatus);
+    if (d.exit) document.getElementById('f-exit').value = d.exit;
+    if (d.exitDate) document.getElementById('f-exit-date').value = d.exitDate;
+    if (d.strategies) setSelectedStrategies(d.strategies);
+    recalc();
+    recalcEntry();
+  } catch(e) {}
+  const banner = document.getElementById('draft-banner');
+  if (banner) banner.remove();
+  showToast('✓ Taslak yüklendi');
+}
+
+function discardDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  const banner = document.getElementById('draft-banner');
+  if (banner) banner.remove();
+}
+
+function attachDraftListeners() {
+  const ids = ['f-symbol','f-entry','f-sl','f-tp','f-possize','f-note','f-trade-number','f-exit','f-exit-date','f-emotion','strategy-other-text','fib-level-custom'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveDraft);
+  });
+  document.getElementById('f-tf').addEventListener('change', saveDraft);
+  document.getElementById('f-market').addEventListener('change', saveDraft);
+  document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]').forEach(cb => cb.addEventListener('change', saveDraft));
+}
+
 function init() {
   const now = new Date();
   document.getElementById('f-date').value = now.toISOString().slice(0,10);
   document.getElementById('f-time').value = now.toTimeString().slice(0,5);
   renderTradeList();
   updateStats();
+  attachDraftListeners();
+  loadDraft();
 }
 
 function switchPage(page, btn) {
@@ -1306,6 +1408,7 @@ function saveTrade() {
   }
 
   saveData();
+  localStorage.removeItem(DRAFT_KEY);
   showToast(editingTradeId ? '✓ Güncellendi!' : isOpen ? '⏳ Açık pozisyon kaydedildi!' : '✓ Kaydedildi!');
   resetForm();
   renderTradeList();
@@ -1313,6 +1416,7 @@ function saveTrade() {
 }
 
 function resetForm() {
+  localStorage.removeItem(DRAFT_KEY);
   ['f-symbol','f-entry','f-sl','f-tp','f-possize','f-exit','f-note','f-trade-number','strategy-other-text','fib-level-custom'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -1439,7 +1543,8 @@ function openPartialCloseModal(id) {
 
   const partials = t.partialExits || [];
   const closedSize = partials.reduce((s, p) => s + (p.size || 0), 0);
-  const remainingSize = t.posSize - closedSize;
+  const totalOriginal = t.originalPosSize || t.posSize + closedSize;
+  const remainingSize = totalOriginal - closedSize;
   const realizedPnl = partials.reduce((s, p) => s + (p.pnl || 0), 0);
 
   document.getElementById('partial-close-summary').innerHTML =
@@ -1503,18 +1608,23 @@ function confirmPartialClose() {
   // Check if fully closed
   const closedSize = t.partialExits.reduce((s, p) => s + (p.size || 0), 0);
   const totalPnl = t.partialExits.reduce((s, p) => s + (p.pnl || 0), 0);
+  const remainingSize = (t.originalPosSize || t.posSize) - closedSize;
 
-  if (closedSize >= t.posSize) {
+  // Store original posSize first time
+  if (!t.originalPosSize) t.originalPosSize = t.posSize;
+
+  if (closedSize >= t.originalPosSize) {
     t.isOpen = false;
+    t.posSize = 0;
     t.pnl = parseFloat(totalPnl.toFixed(2));
     t.outcome = totalPnl > 0.01 ? 'win' : totalPnl < -0.01 ? 'loss' : 'be';
     t.exitPrice = exitPrice;
     t.exitDate = date;
     showToast('✓ Pozisyon tamamen kapandı!');
   } else {
-    // Update partial P&L display
+    t.posSize = parseFloat(remainingSize.toFixed(2));
     t.pnl = parseFloat(totalPnl.toFixed(2));
-    showToast(`✓ Kısmi çıkış kaydedildi · Realize: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+    showToast(`✓ Kısmi çıkış · Kalan: $${t.posSize.toLocaleString()} · Realize: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
   }
 
   saveData();
