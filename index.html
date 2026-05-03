@@ -787,7 +787,7 @@
         <button type="button" id="close-screenshot-remove" style="display:none;width:100%;margin-top:6px;padding:7px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:11px;font-family:'Space Mono',monospace;cursor:pointer" onclick="removeCloseScreenshot()">✕ Kaldır</button>
       </div>
  
-      <button class="btn-confirm-close" onclick="closeTrade()">KAYDET & KAPAT ✓</button>
+      <button class="btn-confirm-close" id="btn-confirm-close" onclick="closeTrade()">KAYDET & KAPAT ✓</button>
     </div>
   </div>
 </div>
@@ -1665,6 +1665,8 @@ function openCloseModal(id) {
   removeCloseScreenshot();
  
   showDetail(id, true);
+  // Set ID directly on confirm button as fallback
+  document.getElementById('btn-confirm-close').dataset.closeId = id;
 }
  
 function setReview(key, val) {
@@ -1678,7 +1680,8 @@ function setReview(key, val) {
 }
  
 function recalcClose() {
-  const t = trades.find(x => x.id === activeCloseId);
+  const closeId = activeCloseId || parseInt(document.getElementById('btn-confirm-close')?.dataset.closeId);
+  const t = trades.find(x => x.id === closeId);
   if (!t) return;
   const exitPrice = parseFloat(document.getElementById('cf-exit').value);
   const box = document.getElementById('close-calc-box');
@@ -1735,8 +1738,10 @@ function parsePnl(val) {
 }
  
 function closeTrade() {
-  const t = trades.find(x => x.id === activeCloseId);
-  if (!t) return;
+  // Use activeCloseId or fallback to button's data attribute
+  const closeId = activeCloseId || parseInt(document.getElementById('btn-confirm-close')?.dataset.closeId);
+  const t = trades.find(x => x.id === closeId);
+  if (!t) { showToast('⚠️ Trade bulunamadı, modalı kapatıp tekrar aç', 'err'); return; }
  
   const exitPrice = parseFloat(document.getElementById('cf-exit').value);
   if (!exitPrice) {
