@@ -664,6 +664,7 @@
 
     <!-- CLOSE TRADE FORM -->
     <div class="close-form" id="close-form" style="display:none">
+      <input type="hidden" id="close-trade-id" value="">
       <div class="modal-section-title">🔒 Pozisyonu Kapat</div>
 
       <div class="row-2" style="margin-bottom:11px">
@@ -1680,8 +1681,8 @@ function setReview(key, val) {
 }
 
 function recalcClose() {
-  const closeId = activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
-  const t = trades.find(x => x.id == closeId);
+  const closeId = document.getElementById('close-trade-id')?.value || activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const t = trades.find(x => String(x.id) === String(closeId));
   if (!t) return;
   const exitPrice = parseFloat(document.getElementById('cf-exit').value);
   const box = document.getElementById('close-calc-box');
@@ -1738,8 +1739,8 @@ function parsePnl(val) {
 }
 
 function closeTrade() {
-  const closeId = activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
-  const t = trades.find(x => x.id == closeId); // loose == intentional for string/number mismatch
+  const closeId = document.getElementById('close-trade-id')?.value || activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const t = trades.find(x => String(x.id) === String(closeId));
   if (!t) { showToast('⚠️ Trade bulunamadı, modalı kapatıp tekrar aç', 'err'); return; }
 
   const exitPrice = parseFloat(document.getElementById('cf-exit').value);
@@ -1964,7 +1965,11 @@ function showDetail(id, openClose = false) {
   document.getElementById('modal-body').innerHTML = bodyHtml;
 
   document.getElementById('close-form').style.display = (t.isOpen || openClose) ? 'block' : 'none';
-  if (openClose) activeCloseId = id;
+  if (openClose) {
+    activeCloseId = id;
+    document.getElementById('close-trade-id').value = id;
+    document.getElementById('btn-confirm-close').dataset.closeId = id;
+  }
   document.getElementById('modal-overlay').classList.add('open');
 }
 
