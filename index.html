@@ -1666,8 +1666,12 @@ function openCloseModal(id) {
   removeCloseScreenshot();
 
   showDetail(id, true);
-  // Set ID directly on confirm button as fallback
-  document.getElementById('btn-confirm-close').dataset.closeId = id;
+  // Write ID on multiple elements as fallback
+  const idStr = String(id);
+  document.getElementById('btn-confirm-close').dataset.closeId = idStr;
+  document.getElementById('cf-exit').dataset.tradeId = idStr;
+  document.getElementById('close-trade-id').value = idStr;
+  activeCloseId = id;
 }
 
 function setReview(key, val) {
@@ -1681,7 +1685,10 @@ function setReview(key, val) {
 }
 
 function recalcClose() {
-  const closeId = document.getElementById('close-trade-id')?.value || activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const hiddenVal = document.getElementById('close-trade-id')?.value;
+  const btnVal = document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const inputVal = document.getElementById('cf-exit')?.dataset.tradeId;
+  const closeId = hiddenVal || inputVal || btnVal || activeCloseId;
   const t = trades.find(x => String(x.id) === String(closeId));
   if (!t) return;
   const exitPrice = parseFloat(document.getElementById('cf-exit').value);
@@ -1739,7 +1746,10 @@ function parsePnl(val) {
 }
 
 function closeTrade() {
-  const closeId = document.getElementById('close-trade-id')?.value || activeCloseId || document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const hiddenVal = document.getElementById('close-trade-id')?.value;
+  const btnVal = document.getElementById('btn-confirm-close')?.dataset.closeId;
+  const inputVal = document.getElementById('cf-exit')?.dataset.tradeId;
+  const closeId = hiddenVal || inputVal || btnVal || activeCloseId;
   const t = trades.find(x => String(x.id) === String(closeId));
   if (!t) { showToast('⚠️ Trade bulunamadı, modalı kapatıp tekrar aç', 'err'); return; }
 
@@ -1967,8 +1977,10 @@ function showDetail(id, openClose = false) {
   document.getElementById('close-form').style.display = (t.isOpen || openClose) ? 'block' : 'none';
   if (openClose) {
     activeCloseId = id;
-    document.getElementById('close-trade-id').value = id;
-    document.getElementById('btn-confirm-close').dataset.closeId = id;
+    const idStr = String(id);
+    document.getElementById('close-trade-id').value = idStr;
+    document.getElementById('btn-confirm-close').dataset.closeId = idStr;
+    document.getElementById('cf-exit').dataset.tradeId = idStr;
   }
   document.getElementById('modal-overlay').classList.add('open');
 }
