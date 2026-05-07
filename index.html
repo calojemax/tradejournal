@@ -381,12 +381,15 @@
   <button class="tab active" onclick="switchPage('add', this)">+ Ekle</button>
   <button class="tab" onclick="switchPage('journal', this)">Journal</button>
   <button class="tab" onclick="switchPage('analytics', this)">Analiz</button>
+  <button class="tab" onclick="switchPage('review', this)">📊 Review</button>
 </div>
 
 <div class="content">
 
   <!-- ADD PAGE -->
   <div class="page active" id="page-add">
+
+    <div id="discipline-warnings" style="display:none;margin-bottom:14px"></div>
 
     <div class="form-section">
       <div class="form-title">📅 Temel Bilgiler</div>
@@ -646,6 +649,18 @@
         <div class="a-sub" id="a-worst-sym">—</div>
       </div>
       <div class="analytics-card full">
+        <div class="a-label">📈 Equity Curve (Kümülatif P&L)</div>
+        <div id="equity-curve" style="margin-top:10px"></div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">🎯 Setup Kalitesi vs Gerçek Sonuç</div>
+        <div id="quality-breakdown" style="margin-top:8px"></div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">😶 Duygu × Sonuç</div>
+        <div id="emotion-breakdown" style="margin-top:8px"></div>
+      </div>
+      <div class="analytics-card full">
         <div class="a-label">Strateji Başarısı</div>
         <div id="strategy-breakdown" style="margin-top:8px;color:var(--muted);font-size:13px">Veri yok</div>
       </div>
@@ -654,6 +669,11 @@
         <div id="symbol-breakdown"></div>
       </div>
     </div>
+  </div>
+
+  <!-- REVIEW PAGE -->
+  <div class="page" id="page-review">
+    <div id="review-content"></div>
   </div>
 </div>
 
@@ -791,6 +811,40 @@
       </div>
 
       <button class="btn-confirm-close" id="btn-confirm-close" onclick="closeTrade()">KAYDET & KAPAT ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRE-TRADE CHECKLIST MODAL -->
+<div class="modal-overlay" id="checklist-modal" onclick="closeChecklist(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✅ Kayıt Öncesi Kontrol</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Bu trade'i kaydetmeden önce 3 soruya yanıt ver. Disiplin önce gelir.</div>
+
+    <div id="checklist-items">
+      <div class="mistake-item" data-check="plan" onclick="toggleCheck(this)">
+        <span class="mistake-name">Plan var mı?</span>
+        <span class="mistake-desc">Önceden yazılı plan</span>
+        <span class="mistake-plus">+</span>
+      </div>
+      <div class="mistake-item" data-check="sl" onclick="toggleCheck(this)">
+        <span class="mistake-name">SL belirli mi?</span>
+        <span class="mistake-desc">Stop loss hesaplandı</span>
+        <span class="mistake-plus">+</span>
+      </div>
+      <div class="mistake-item" data-check="quality" onclick="toggleCheck(this)">
+        <span class="mistake-name">Setup A+/A mı?</span>
+        <span class="mistake-desc">Yüksek kalite kurulum</span>
+        <span class="mistake-plus">+</span>
+      </div>
+    </div>
+
+    <div id="checklist-warning" style="display:none;background:rgba(255,61,110,0.1);border:1px solid var(--red);color:var(--red);padding:11px 14px;border-radius:10px;font-size:12px;margin-top:12px;line-height:1.5"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+      <button class="btn-confirm-close" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border)" onclick="document.getElementById('checklist-modal').classList.remove('open')">İPTAL</button>
+      <button class="btn-confirm-close" id="checklist-confirm-btn" onclick="confirmChecklist()">DEVAM ET ✓</button>
     </div>
   </div>
 </div>
@@ -995,6 +1049,7 @@ function init() {
   updateStats();
   attachDraftListeners();
   loadDraft();
+  updateDisciplineWarnings();
 }
 
 function switchPage(page, btn) {
@@ -1003,6 +1058,8 @@ function switchPage(page, btn) {
   document.getElementById('page-' + page).classList.add('active');
   btn.classList.add('active');
   if (page === 'analytics') updateAnalytics();
+  if (page === 'review') renderReview();
+  if (page === 'add') updateDisciplineWarnings();
 }
 
 function checkOtherStrategy() {
@@ -1335,10 +1392,25 @@ function recalc() {
 
   box.className = 'calc-box has-data';
   box.innerHTML = rows.map(r => `<div class="calc-row"><span class="calc-key">${r.k}</span><span class="calc-val ${r.c||''}">${r.v}</span></div>`).join('');
+  if (typeof checkLiveRiskWarnings === 'function') checkLiveRiskWarnings();
 }
 
 // ── SAVE ──
 function saveTrade() {
+  // Pre-flight: minimum check before showing checklist
+  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
+  if (!symbol) { showToast('⚠️ Sembol girin!', 'err'); return; }
+
+  // Show pre-trade checklist (only for open trades or when status=open)
+  const isOpen = selectedTradeStatus === 'open';
+  if (isOpen) {
+    showChecklist();
+    return;
+  }
+  doSaveTrade();
+}
+
+function doSaveTrade() {
   const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
   if (!symbol) { showToast('⚠️ Sembol girin!', 'err'); return; }
 
@@ -1415,6 +1487,7 @@ function saveTrade() {
   resetForm();
   renderTradeList();
   updateStats();
+  updateDisciplineWarnings();
 }
 
 function resetForm() {
@@ -2092,6 +2165,11 @@ function updateStats() {
 
 // ── ANALYTICS ──
 function updateAnalytics() {
+  // Render new sections regardless
+  renderEquityCurve();
+  renderQualityBreakdown();
+  renderEmotionBreakdown();
+
   const closed = trades.filter(t => !t.isOpen);
   const openCount = trades.filter(t => t.isOpen).length;
 
@@ -2233,7 +2311,357 @@ function showToast(msg, type) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ── BACK BUTTON / HISTORY HANDLING ──
+// ── PRE-TRADE CHECKLIST ──
+function showChecklist() {
+  // Reset checks
+  document.querySelectorAll('#checklist-items .mistake-item').forEach(el => el.classList.remove('selected'));
+  document.getElementById('checklist-warning').style.display = 'none';
+  document.getElementById('checklist-modal').classList.add('open');
+}
+
+function closeChecklist(e) {
+  if (e && e.target.id !== 'checklist-modal') return;
+  document.getElementById('checklist-modal').classList.remove('open');
+}
+
+function toggleCheck(el) {
+  el.classList.toggle('selected');
+  const all = document.querySelectorAll('#checklist-items .mistake-item');
+  const allChecked = Array.from(all).every(x => x.classList.contains('selected'));
+  const warn = document.getElementById('checklist-warning');
+  if (!allChecked) {
+    const missing = Array.from(all).filter(x => !x.classList.contains('selected'))
+      .map(x => x.querySelector('.mistake-name').textContent).join(' • ');
+    warn.textContent = '⚠️ Eksik: ' + missing + '. Hepsini onaylamadan kayıt zorlaşır.';
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function confirmChecklist() {
+  const all = document.querySelectorAll('#checklist-items .mistake-item');
+  const allChecked = Array.from(all).every(x => x.classList.contains('selected'));
+  if (!allChecked) {
+    if (!confirm('⚠️ Tüm kontroller işaretlenmedi. Yine de kaydetmek istiyor musun?')) return;
+  }
+  document.getElementById('checklist-modal').classList.remove('open');
+  doSaveTrade();
+}
+
+// ── DISCIPLINE WARNINGS ──
+function updateDisciplineWarnings() {
+  const container = document.getElementById('discipline-warnings');
+  if (!container) return;
+  const warnings = [];
+
+  const today = new Date().toISOString().slice(0,10);
+  const todaysTrades = trades.filter(t => t.date === today);
+  if (todaysTrades.length >= 3) {
+    warnings.push({ icon: '🚨', text: `Bugün ${todaysTrades.length} trade açtın. Overtrading riski.`, color: 'red' });
+  }
+
+  // Last 3 trades win streak
+  const closed = trades.filter(t => !t.isOpen).slice(-3);
+  if (closed.length === 3 && closed.every(t => t.outcome === 'win')) {
+    warnings.push({ icon: '⚡', text: 'Son 3 trade kazanç. Overconfidence — kurallarına sıkı sıkı bağlı kal.', color: 'orange' });
+  }
+
+  // Last trade was loss → revenge risk
+  const lastClosed = trades.filter(t => !t.isOpen).slice(-1)[0];
+  if (lastClosed && lastClosed.outcome === 'loss') {
+    const lastDate = lastClosed.date + ' ' + (lastClosed.time || '00:00');
+    const lastTime = new Date(lastDate).getTime();
+    const hoursSince = (Date.now() - lastTime) / 3600000;
+    if (hoursSince < 2) {
+      warnings.push({ icon: '🛑', text: 'Son trade kayıptı (< 2 saat önce). İntikam tradesinden kaçın.', color: 'red' });
+    }
+  }
+
+  // Today's loss streak
+  const todaysLosses = todaysTrades.filter(t => t.outcome === 'loss').length;
+  if (todaysLosses >= 2) {
+    warnings.push({ icon: '⛔', text: `Bugün ${todaysLosses} kayıp aldın. Bugün durmayı düşün.`, color: 'red' });
+  }
+
+  if (warnings.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  container.innerHTML = warnings.map(w => {
+    const bg = w.color === 'red' ? 'rgba(255,61,110,0.1)' : 'rgba(255,149,0,0.1)';
+    const border = w.color === 'red' ? 'var(--red)' : 'var(--orange)';
+    const text = w.color === 'red' ? 'var(--red)' : 'var(--orange)';
+    return `<div style="background:${bg};border:1px solid ${border};color:${text};padding:11px 14px;border-radius:10px;font-size:12px;line-height:1.5;margin-bottom:8px;font-weight:600">${w.icon} ${w.text}</div>`;
+  }).join('');
+}
+
+// Live R:R + risk warnings tied to inputs
+function checkLiveRiskWarnings() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const sl = parseFloat(document.getElementById('f-sl').value);
+  const tp = parseFloat(document.getElementById('f-tp').value);
+  const pos = parseFloat(document.getElementById('f-possize').value);
+
+  let liveWarn = '';
+  if (entry && sl && tp) {
+    const risk = Math.abs((sl - entry) / entry);
+    const reward = Math.abs((tp - entry) / entry);
+    if (risk > 0) {
+      const rr = reward / risk;
+      if (rr < 1.5) liveWarn += `<div style="background:rgba(255,149,0,0.1);border:1px solid var(--orange);color:var(--orange);padding:8px 12px;border-radius:8px;font-size:11px;margin-top:8px">⚠️ R:R ${rr.toFixed(2)} — 1:1.5 altında. Beklenen değer düşük.</div>`;
+    }
+  }
+  if (entry && sl && pos) {
+    const riskUsd = pos * Math.abs((sl - entry) / entry);
+    // Assume $5000 baseline, warn if risk > $200 (4%)
+    if (riskUsd > 200) liveWarn += `<div style="background:rgba(255,61,110,0.1);border:1px solid var(--red);color:var(--red);padding:8px 12px;border-radius:8px;font-size:11px;margin-top:8px">🚨 Risk: $${riskUsd.toFixed(0)}. Yüksek risk — pozisyonu küçült.</div>`;
+  }
+
+  // Append to discipline warnings live
+  let liveBox = document.getElementById('live-risk-warnings');
+  if (!liveBox) {
+    liveBox = document.createElement('div');
+    liveBox.id = 'live-risk-warnings';
+    const calcBox = document.getElementById('calc-box');
+    if (calcBox) calcBox.parentNode.insertBefore(liveBox, calcBox.nextSibling);
+  }
+  liveBox.innerHTML = liveWarn;
+}
+
+// ── EQUITY CURVE ──
+function renderEquityCurve() {
+  const el = document.getElementById('equity-curve');
+  if (!el) return;
+  const closed = trades.filter(t => !t.isOpen && t.pnl != null)
+    .sort((a,b) => new Date(a.date + ' ' + (a.time||'00:00')) - new Date(b.date + ' ' + (b.time||'00:00')));
+  if (closed.length === 0) { el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px 0">Kapanmış trade yok</div>'; return; }
+
+  let cum = 0;
+  const points = closed.map(t => { cum += t.pnl; return cum; });
+  const max = Math.max(0, ...points);
+  const min = Math.min(0, ...points);
+  const range = max - min || 1;
+  const w = 340, h = 140, pad = 4;
+  const xStep = points.length > 1 ? (w - pad*2) / (points.length - 1) : 0;
+  const yMap = v => h - pad - ((v - min) / range) * (h - pad*2);
+
+  const pathD = points.map((p,i) => `${i === 0 ? 'M' : 'L'} ${pad + i*xStep} ${yMap(p)}`).join(' ');
+  const zeroY = yMap(0);
+  const lastVal = points[points.length-1];
+  const color = lastVal >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Drawdown calc
+  let peak = 0, maxDD = 0;
+  points.forEach(p => { if (p > peak) peak = p; const dd = peak - p; if (dd > maxDD) maxDD = dd; });
+
+  el.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block">
+      <line x1="${pad}" y1="${zeroY}" x2="${w-pad}" y2="${zeroY}" stroke="var(--border)" stroke-dasharray="3,3"/>
+      <path d="${pathD}" stroke="${color}" stroke-width="2" fill="none" stroke-linejoin="round"/>
+      ${points.map((p,i) => `<circle cx="${pad + i*xStep}" cy="${yMap(p)}" r="2.5" fill="${p >= 0 ? 'var(--green)' : 'var(--red)'}"/>`).join('')}
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px;font-family:'Space Mono',monospace">
+      <span>Toplam: <span style="color:${lastVal>=0?'var(--green)':'var(--red)'};font-weight:700">$${lastVal.toFixed(0)}</span></span>
+      <span>Max DD: <span style="color:var(--red);font-weight:700">-$${maxDD.toFixed(0)}</span></span>
+      <span>${closed.length} trade</span>
+    </div>
+  `;
+}
+
+// ── SETUP QUALITY × OUTCOME ──
+function renderQualityBreakdown() {
+  const el = document.getElementById('quality-breakdown');
+  if (!el) return;
+  const closed = trades.filter(t => !t.isOpen && t.outcome);
+  if (closed.length === 0) { el.innerHTML = '<div style="color:var(--muted);font-size:12px">Veri yok</div>'; return; }
+
+  const buckets = { 'A+': [], 'A': [], 'B': [], 'C': [], '?': [] };
+  closed.forEach(t => {
+    const q = t.setupQuality || '?';
+    if (buckets[q]) buckets[q].push(t);
+    else buckets['?'].push(t);
+  });
+
+  let html = '';
+  Object.entries(buckets).forEach(([q, list]) => {
+    if (list.length === 0) return;
+    const wins = list.filter(t => t.outcome === 'win').length;
+    const wr = (wins / list.length * 100).toFixed(0);
+    const totalPnl = list.reduce((s,t) => s + (t.pnl||0), 0);
+    const colors = { 'A+': 'var(--green)', 'A': 'var(--accent)', 'B': 'var(--orange)', 'C': 'var(--red)', '?': 'var(--muted)' };
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Space Mono',monospace;font-weight:700;color:${colors[q]};min-width:24px">${q}</span>
+        <span style="color:var(--muted);font-size:11px">${list.length} trade</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:13px">${wr}% WR</div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:${totalPnl>=0?'var(--green)':'var(--red)'}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(0)}</div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html || '<div style="color:var(--muted);font-size:12px">Veri yok</div>';
+}
+
+// ── EMOTION × OUTCOME ──
+function renderEmotionBreakdown() {
+  const el = document.getElementById('emotion-breakdown');
+  if (!el) return;
+  const closed = trades.filter(t => !t.isOpen && t.outcome && t.emotion);
+  if (closed.length === 0) { el.innerHTML = '<div style="color:var(--muted);font-size:12px">Veri yok</div>'; return; }
+
+  const groups = {};
+  closed.forEach(t => {
+    if (!groups[t.emotion]) groups[t.emotion] = [];
+    groups[t.emotion].push(t);
+  });
+
+  const sorted = Object.entries(groups).sort((a,b) => b[1].length - a[1].length);
+  let html = '';
+  sorted.forEach(([emo, list]) => {
+    const wins = list.filter(t => t.outcome === 'win').length;
+    const wr = (wins / list.length * 100).toFixed(0);
+    const totalPnl = list.reduce((s,t) => s + (t.pnl||0), 0);
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-weight:700;min-width:90px">${emo}</span>
+        <span style="color:var(--muted);font-size:11px">${list.length}x</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:13px">${wr}% WR</div>
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:${totalPnl>=0?'var(--green)':'var(--red)'}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(0)}</div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ── WEEKLY REVIEW ──
+function renderReview() {
+  const el = document.getElementById('review-content');
+  if (!el) return;
+
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 3600 * 1000;
+  const weekTrades = trades.filter(t => {
+    const ts = new Date((t.date || '') + ' ' + (t.time || '00:00')).getTime();
+    return ts >= weekAgo;
+  });
+  const closed = weekTrades.filter(t => !t.isOpen);
+
+  if (weekTrades.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📊</div><h3>Bu hafta veri yok</h3><p>Trade kaydetmeye başla, haftalık özet burada belirir.</p></div>`;
+    return;
+  }
+
+  const wins = closed.filter(t => t.outcome === 'win').length;
+  const losses = closed.filter(t => t.outcome === 'loss').length;
+  const wr = closed.length > 0 ? (wins / closed.length * 100).toFixed(0) : 0;
+  const pnl = closed.reduce((s,t) => s + (t.pnl||0), 0);
+
+  // Most common mistake
+  const mistakeCount = {};
+  closed.forEach(t => (t.mistakes||[]).forEach(m => { if (m !== 'Hatasız') mistakeCount[m] = (mistakeCount[m]||0) + 1; }));
+  const topMistake = Object.entries(mistakeCount).sort((a,b) => b[1]-a[1])[0];
+
+  // Best setup
+  const setupPnl = {};
+  closed.forEach(t => {
+    const strats = Array.isArray(t.strategies) ? t.strategies : (t.strategy ? [t.strategy] : []);
+    strats.forEach(s => { setupPnl[s] = (setupPnl[s]||0) + (t.pnl||0); });
+  });
+  const bestSetup = Object.entries(setupPnl).sort((a,b) => b[1]-a[1])[0];
+  const worstSetup = Object.entries(setupPnl).sort((a,b) => a[1]-b[1])[0];
+
+  // Worst emotion
+  const emoPnl = {};
+  closed.forEach(t => { if (t.emotion) emoPnl[t.emotion] = (emoPnl[t.emotion]||0) + (t.pnl||0); });
+  const worstEmo = Object.entries(emoPnl).sort((a,b) => a[1]-b[1])[0];
+
+  // Plan compliance
+  const planFollowed = closed.filter(t => t.planCompliance === true).length;
+  const planRate = closed.length > 0 ? (planFollowed / closed.length * 100).toFixed(0) : 0;
+
+  // Daily distribution
+  const byDay = {};
+  weekTrades.forEach(t => { byDay[t.date] = (byDay[t.date]||0) + 1; });
+  const days = Object.entries(byDay).sort();
+
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px">Haftalık Rapor</div>
+      <div style="font-size:18px;font-weight:800">Son 7 Gün</div>
+    </div>
+
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <div class="a-label">Trade Sayısı</div>
+        <div class="a-val">${weekTrades.length}</div>
+        <div class="a-sub">${closed.length} kapalı / ${weekTrades.length - closed.length} açık</div>
+      </div>
+      <div class="analytics-card">
+        <div class="a-label">Win Rate</div>
+        <div class="a-val ${wr >= 50 ? 'pos' : 'neg'}">${wr}%</div>
+        <div class="a-sub">${wins}W / ${losses}L</div>
+      </div>
+      <div class="analytics-card full">
+        <div class="a-label">Net P&L</div>
+        <div class="a-val ${pnl >= 0 ? 'pos' : 'neg'}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</div>
+        <div class="a-sub">Plan uyumu: ${planRate}%</div>
+      </div>
+    </div>
+
+    ${topMistake ? `
+    <div class="analytics-card" style="margin-top:12px;border-color:var(--red)">
+      <div class="a-label" style="color:var(--red)">⚠️ En Sık Yapılan Hata</div>
+      <div style="font-size:18px;font-weight:700;margin-top:6px">${topMistake[0]}</div>
+      <div class="a-sub">${topMistake[1]} kez işaretledin — gelecek hafta için hedefin ne?</div>
+    </div>` : ''}
+
+    ${bestSetup ? `
+    <div class="analytics-card" style="margin-top:10px">
+      <div class="a-label" style="color:var(--green)">🏆 En Kârlı Setup</div>
+      <div style="font-size:16px;font-weight:700;margin-top:6px">${bestSetup[0]}</div>
+      <div class="a-sub" style="color:var(--green)">+$${bestSetup[1].toFixed(0)}</div>
+    </div>` : ''}
+
+    ${worstSetup && worstSetup[1] < 0 ? `
+    <div class="analytics-card" style="margin-top:10px">
+      <div class="a-label" style="color:var(--red)">🩸 En Zararlı Setup</div>
+      <div style="font-size:16px;font-weight:700;margin-top:6px">${worstSetup[0]}</div>
+      <div class="a-sub" style="color:var(--red)">$${worstSetup[1].toFixed(0)}</div>
+    </div>` : ''}
+
+    ${worstEmo && worstEmo[1] < 0 ? `
+    <div class="analytics-card" style="margin-top:10px">
+      <div class="a-label">🚨 Riskli Duygu Durumu</div>
+      <div style="font-size:16px;font-weight:700;margin-top:6px">${worstEmo[0]}</div>
+      <div class="a-sub" style="color:var(--red)">$${worstEmo[1].toFixed(0)} bu duygu durumunda</div>
+    </div>` : ''}
+
+    <div class="analytics-card full" style="margin-top:12px">
+      <div class="a-label">Günlük Aktivite</div>
+      <div style="margin-top:8px">
+        ${days.map(([d, n]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:'Space Mono',monospace">${d}</span><span style="color:${n >= 3 ? 'var(--red)' : 'var(--muted)'}">${n} trade${n >= 3 ? ' ⚠️' : ''}</span></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="analytics-card full" style="margin-top:12px;background:rgba(0,229,255,0.04);border-color:var(--accent)">
+      <div class="a-label" style="color:var(--accent)">💭 Bu Hafta Çıkarımları</div>
+      <div style="margin-top:10px;font-size:13px;line-height:1.7;color:var(--text)">
+        ${pnl >= 0 ? '✓ Hafta pozitif kapandı.' : '✗ Hafta negatif kapandı — hatalarına bak.'}<br>
+        ${wr >= 50 ? '✓ Win rate ≥ %50.' : '✗ Win rate düşük — setup kalitesini sorgula.'}<br>
+        ${planRate >= 80 ? '✓ Plan uyumu yüksek.' : '✗ Plan uyumu düşük — disiplin sorunu.'}<br>
+        ${weekTrades.length / 7 > 3 ? '✗ Günlük 3+ trade ortalaması — overtrading.' : '✓ Trade sayısı makul.'}
+      </div>
+    </div>
+  `;
+}
+
+
 // Close any open modal when user presses back instead of leaving the page
 (function() {
   let modalOpenInHistory = false;
@@ -2254,7 +2682,7 @@ function showToast(msg, type) {
   }
 
   // Watch for modal class changes
-  const overlays = ['modal-overlay', 'add-position-modal', 'partial-close-modal'];
+  const overlays = ['modal-overlay', 'add-position-modal', 'partial-close-modal', 'checklist-modal'];
   const observers = overlays.map(id => {
     const el = document.getElementById(id);
     if (!el) return null;
