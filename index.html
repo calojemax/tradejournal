@@ -269,6 +269,24 @@
   }
   .delete-btn:active { opacity: 1; color: var(--red); }
 
+  /* COMPACT VIEW */
+  body.compact .trade-card { padding: 8px 12px; margin-bottom: 6px; }
+  body.compact .card-symbol { font-size: 14px; }
+  body.compact .card-pnl { font-size: 13px; }
+  body.compact .card-date { font-size: 9px; }
+  body.compact .card-meta { gap: 4px; margin-top: 3px; }
+  body.compact .badge { font-size: 8px; padding: 2px 5px; }
+  body.compact .card-calc { font-size: 10px; margin-top: 2px; line-height: 1.4; }
+  body.compact .card-note { display: none; }
+  body.compact .trade-card .card-top > div:last-child > div:last-child { display: none; }
+  body.compact .partial-line { font-size: 10px; }
+  body.compact .trade-card > div[style*="grid-template-columns:1fr 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 4px !important;
+    margin-top: 6px !important;
+  }
+  body.compact .trade-card .btn-close-trade { font-size: 8px !important; padding: 5px 2px !important; }
+
   .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
@@ -302,7 +320,9 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
-  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; cursor: pointer; position: relative; }
+  .modal-handle::before { content: ''; position: absolute; top: -12px; bottom: -12px; left: -40px; right: -40px; }
+  .modal-handle:active { background: var(--muted); }
   .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; }
   .detail-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   .detail-row:last-child { border-bottom: none; }
@@ -599,10 +619,12 @@
     <div class="filters">
       <button class="filter-chip active" onclick="setFilter('all', this)">Tümü</button>
       <button class="filter-chip open-chip" onclick="setFilter('open', this)">⏳ Açık</button>
+      <button class="filter-chip" onclick="setFilter('closed', this)">✓ Kapalı</button>
       <button class="filter-chip" onclick="setFilter('win', this)">Win</button>
       <button class="filter-chip" onclick="setFilter('loss', this)">Loss</button>
       <button class="filter-chip" onclick="setFilter('long', this)">Long</button>
       <button class="filter-chip" onclick="setFilter('short', this)">Short</button>
+      <button class="filter-chip" id="compact-toggle" style="margin-left:auto" onclick="toggleCompact(this)">📐 Kompakt</button>
     </div>
     <div id="trade-list"></div>
   </div>
@@ -673,6 +695,11 @@
 
   <!-- REVIEW PAGE -->
   <div class="page" id="page-review">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px" id="review-period-tabs">
+      <button class="filter-chip active" data-period="7" onclick="setReviewPeriod(this,7)">Son 7 Gün</button>
+      <button class="filter-chip" data-period="30" onclick="setReviewPeriod(this,30)">Son 30 Gün</button>
+      <button class="filter-chip" data-period="all" onclick="setReviewPeriod(this,'all')">Tüm Zamanlar</button>
+    </div>
     <div id="review-content"></div>
   </div>
 </div>
@@ -1050,6 +1077,8 @@ function init() {
   attachDraftListeners();
   loadDraft();
   updateDisciplineWarnings();
+  attachHandleListeners();
+  loadCompactPref();
 }
 
 function switchPage(page, btn) {
@@ -1865,6 +1894,7 @@ function renderTradeList() {
   const filtered = trades.filter(t => {
     if (currentFilter === 'all') return true;
     if (currentFilter === 'open') return t.isOpen;
+    if (currentFilter === 'closed') return !t.isOpen;
     if (currentFilter === 'win') return t.outcome === 'win';
     if (currentFilter === 'loss') return t.outcome === 'loss';
     if (currentFilter === 'long') return t.direction === 'long';
@@ -2311,6 +2341,51 @@ function showToast(msg, type) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── MODAL HANDLE & SWIPE TO CLOSE ──
+function closeAnyModal() {
+  const overlays = ['modal-overlay', 'add-position-modal', 'partial-close-modal', 'checklist-modal'];
+  overlays.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('open')) {
+      el.classList.remove('open');
+    }
+  });
+  activeCloseId = null;
+  activeAddPositionId = null;
+  activePartialCloseId = null;
+  window.CLOSE_ID = null;
+}
+
+function attachHandleListeners() {
+  document.querySelectorAll('.modal-handle').forEach(handle => {
+    if (handle.dataset.attached) return;
+    handle.dataset.attached = '1';
+    // Tap to close
+    handle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAnyModal();
+    });
+    // Swipe down to close
+    let startY = null;
+    const modal = handle.closest('.modal');
+    handle.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    handle.addEventListener('touchmove', (e) => {
+      if (startY === null) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0 && modal) modal.style.transform = `translateY(${Math.min(dy, 200)}px)`;
+    }, { passive: true });
+    handle.addEventListener('touchend', (e) => {
+      if (startY === null) return;
+      const dy = (e.changedTouches[0].clientY) - startY;
+      if (modal) modal.style.transform = '';
+      if (dy > 60) closeAnyModal();
+      startY = null;
+    });
+  });
+}
+
 // ── PRE-TRADE CHECKLIST ──
 function showChecklist() {
   // Reset checks
@@ -2539,21 +2614,51 @@ function renderEmotionBreakdown() {
   el.innerHTML = html;
 }
 
-// ── WEEKLY REVIEW ──
+// ── COMPACT VIEW ──
+function toggleCompact(btn) {
+  const on = !document.body.classList.contains('compact');
+  document.body.classList.toggle('compact', on);
+  btn.classList.toggle('active', on);
+  localStorage.setItem('tradelog_compact', on ? '1' : '0');
+}
+
+function loadCompactPref() {
+  if (localStorage.getItem('tradelog_compact') === '1') {
+    document.body.classList.add('compact');
+    const btn = document.getElementById('compact-toggle');
+    if (btn) btn.classList.add('active');
+  }
+}
+
+// ── WEEKLY/MONTHLY/ALL REVIEW ──
+let reviewPeriod = 7;
+
+function setReviewPeriod(btn, days) {
+  reviewPeriod = days;
+  document.querySelectorAll('#review-period-tabs .filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReview();
+}
+
 function renderReview() {
   const el = document.getElementById('review-content');
   if (!el) return;
 
   const now = Date.now();
-  const weekAgo = now - 7 * 24 * 3600 * 1000;
-  const weekTrades = trades.filter(t => {
+  const isAll = reviewPeriod === 'all';
+  const cutoff = isAll ? 0 : now - reviewPeriod * 24 * 3600 * 1000;
+  const periodTrades = trades.filter(t => {
+    if (isAll) return true;
     const ts = new Date((t.date || '') + ' ' + (t.time || '00:00')).getTime();
-    return ts >= weekAgo;
+    return ts >= cutoff;
   });
-  const closed = weekTrades.filter(t => !t.isOpen);
+  const closed = periodTrades.filter(t => !t.isOpen);
 
-  if (weekTrades.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📊</div><h3>Bu hafta veri yok</h3><p>Trade kaydetmeye başla, haftalık özet burada belirir.</p></div>`;
+  const periodLabel = isAll ? 'Tüm Zamanlar' : reviewPeriod === 7 ? 'Son 7 Gün' : `Son ${reviewPeriod} Gün`;
+  const reportLabel = isAll ? 'Genel Rapor' : reviewPeriod === 7 ? 'Haftalık Rapor' : 'Aylık Rapor';
+
+  if (periodTrades.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📊</div><h3>${periodLabel} için veri yok</h3><p>Trade kaydetmeye başla, özet burada belirir.</p></div>`;
     return;
   }
 
@@ -2587,20 +2692,24 @@ function renderReview() {
 
   // Daily distribution
   const byDay = {};
-  weekTrades.forEach(t => { byDay[t.date] = (byDay[t.date]||0) + 1; });
+  periodTrades.forEach(t => { byDay[t.date] = (byDay[t.date]||0) + 1; });
   const days = Object.entries(byDay).sort();
+
+  // Compute period days for overtrading check
+  const periodDays = isAll ? Math.max(1, days.length) : reviewPeriod;
+  const avgPerDay = periodTrades.length / periodDays;
 
   el.innerHTML = `
     <div style="margin-bottom:14px">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px">Haftalık Rapor</div>
-      <div style="font-size:18px;font-weight:800">Son 7 Gün</div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px">${reportLabel}</div>
+      <div style="font-size:18px;font-weight:800">${periodLabel}</div>
     </div>
 
     <div class="analytics-grid">
       <div class="analytics-card">
         <div class="a-label">Trade Sayısı</div>
-        <div class="a-val">${weekTrades.length}</div>
-        <div class="a-sub">${closed.length} kapalı / ${weekTrades.length - closed.length} açık</div>
+        <div class="a-val">${periodTrades.length}</div>
+        <div class="a-sub">${closed.length} kapalı / ${periodTrades.length - closed.length} açık</div>
       </div>
       <div class="analytics-card">
         <div class="a-label">Win Rate</div>
@@ -2618,7 +2727,7 @@ function renderReview() {
     <div class="analytics-card" style="margin-top:12px;border-color:var(--red)">
       <div class="a-label" style="color:var(--red)">⚠️ En Sık Yapılan Hata</div>
       <div style="font-size:18px;font-weight:700;margin-top:6px">${topMistake[0]}</div>
-      <div class="a-sub">${topMistake[1]} kez işaretledin — gelecek hafta için hedefin ne?</div>
+      <div class="a-sub">${topMistake[1]} kez işaretledin — gelecek dönem için hedefin ne?</div>
     </div>` : ''}
 
     ${bestSetup ? `
@@ -2644,18 +2753,18 @@ function renderReview() {
 
     <div class="analytics-card full" style="margin-top:12px">
       <div class="a-label">Günlük Aktivite</div>
-      <div style="margin-top:8px">
+      <div style="margin-top:8px;max-height:240px;overflow-y:auto">
         ${days.map(([d, n]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-family:'Space Mono',monospace">${d}</span><span style="color:${n >= 3 ? 'var(--red)' : 'var(--muted)'}">${n} trade${n >= 3 ? ' ⚠️' : ''}</span></div>`).join('')}
       </div>
     </div>
 
     <div class="analytics-card full" style="margin-top:12px;background:rgba(0,229,255,0.04);border-color:var(--accent)">
-      <div class="a-label" style="color:var(--accent)">💭 Bu Hafta Çıkarımları</div>
+      <div class="a-label" style="color:var(--accent)">💭 Dönem Çıkarımları</div>
       <div style="margin-top:10px;font-size:13px;line-height:1.7;color:var(--text)">
-        ${pnl >= 0 ? '✓ Hafta pozitif kapandı.' : '✗ Hafta negatif kapandı — hatalarına bak.'}<br>
+        ${pnl >= 0 ? '✓ Dönem pozitif kapandı.' : '✗ Dönem negatif kapandı — hatalarına bak.'}<br>
         ${wr >= 50 ? '✓ Win rate ≥ %50.' : '✗ Win rate düşük — setup kalitesini sorgula.'}<br>
         ${planRate >= 80 ? '✓ Plan uyumu yüksek.' : '✗ Plan uyumu düşük — disiplin sorunu.'}<br>
-        ${weekTrades.length / 7 > 3 ? '✗ Günlük 3+ trade ortalaması — overtrading.' : '✓ Trade sayısı makul.'}
+        ${avgPerDay > 3 ? `✗ Günlük ${avgPerDay.toFixed(1)} trade ortalaması — overtrading.` : `✓ Trade sayısı makul (günlük ort. ${avgPerDay.toFixed(1)}).`}
       </div>
     </div>
   `;
