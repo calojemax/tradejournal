@@ -30,7 +30,7 @@
     --red: #ff3d6e;
     --orange: #ff9500;
     --text: #e8e8f0;
-    --muted: #5a5a7a;
+    --muted: #8a8aa8;
     --card: #14141e;
   }
 
@@ -114,7 +114,7 @@
   .form-section { margin-bottom: 18px; }
   .form-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); margin-bottom: 10px; }
   .form-group { margin-bottom: 11px; }
-  label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #9090b0; margin-bottom: 5px; }
+  label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #b0b0c8; margin-bottom: 5px; }
   input, select, textarea {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); font-family: 'Syne', sans-serif; font-size: 15px;
@@ -413,49 +413,65 @@
 
     <div class="form-section">
       <div class="form-title">📅 Temel Bilgiler</div>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group">
-          <label>Sembol / Parite</label>
-          <input type="text" id="f-symbol" placeholder="BTCUSDT, ETH..." autocomplete="off" style="text-transform:uppercase">
+          <label>Giriş Tarihi</label>
+          <input type="date" id="f-date">
         </div>
         <div class="form-group">
           <label>Sıra <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(günün)</span></label>
           <input type="number" id="f-trade-number" placeholder="1, 2..." min="1" step="1">
         </div>
       </div>
-      <div class="row-2">
-        <div class="form-group"><label>Giriş Tarihi</label><input type="date" id="f-date"></div>
-        <div class="form-group"><label>Giriş Saati</label><input type="time" id="f-time"></div>
-      </div>
     </div>
 
     <div class="form-section">
       <div class="form-title">📊 Pozisyon</div>
-      <div class="form-group">
-        <label>Yön</label>
-        <div class="dir-toggle">
-          <button class="dir-btn long active" id="dir-long" onclick="setDir('long')">▲ LONG</button>
-          <button class="dir-btn short" id="dir-short" onclick="setDir('short')">▼ SHORT</button>
+
+      <!-- Compact row: Direction + Timeframe -->
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:11px">
+        <div>
+          <label>Yön</label>
+          <div class="dir-toggle" style="height:38px">
+            <button class="dir-btn long active" id="dir-long" onclick="setDir('long')" style="padding:8px;font-size:12px">▲ LONG</button>
+            <button class="dir-btn short" id="dir-short" onclick="setDir('short')" style="padding:8px;font-size:12px">▼ SHORT</button>
+          </div>
+        </div>
+        <div>
+          <label>Zaman</label>
+          <select id="f-tf" style="padding:8px 10px;font-size:13px;height:38px"><option>M15</option><option>M30</option><option selected>H1</option><option>H4</option><option>D1</option><option>W1</option><option>MN</option></select>
         </div>
       </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label>Zaman Dilimi</label>
-          <select id="f-tf"><option>M15</option><option>M30</option><option selected>H1</option><option>H4</option><option>D1</option><option>W1</option><option>MN</option></select>
-        </div>
-        <div class="form-group">
+
+      <!-- Compact row: Market + Symbol dropdown/text -->
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-bottom:11px">
+        <div>
           <label>Piyasa</label>
-          <select id="f-market"><option selected>Kripto</option><option>Forex</option><option>Hisse</option><option>Emtia</option><option>Endeks</option></select>
+          <select id="f-market" onchange="onMarketChange()" style="padding:8px 10px;font-size:13px;height:38px">
+            <option selected>Kripto</option><option>Forex</option><option>Hisse</option><option>Emtia</option><option>Endeks</option>
+          </select>
+        </div>
+        <div>
+          <label>Sembol</label>
+          <select id="f-symbol-select" onchange="onSymbolPresetChange()" style="padding:8px 10px;font-size:13px;height:38px">
+            <option value="">— seç —</option>
+          </select>
         </div>
       </div>
+
+      <!-- Custom symbol input (shown only when "Diğer" selected or non-preset market) -->
+      <div class="form-group" id="symbol-custom-wrap" style="display:none">
+        <input type="text" id="f-symbol" placeholder="Sembol/parite yazın" autocomplete="off" style="text-transform:uppercase;padding:9px 12px;font-size:13px">
+      </div>
+
       <div class="row-3">
         <div class="form-group"><label>Giriş</label><input type="number" id="f-entry" placeholder="0.00" step="any" oninput="recalc()"></div>
         <div class="form-group"><label>SL</label><input type="number" id="f-sl" placeholder="0.00" step="any" oninput="recalc()"></div>
         <div class="form-group"><label>TP</label><input type="number" id="f-tp" placeholder="0.00" step="any" oninput="recalc()"></div>
       </div>
       <div class="form-group">
-        <label>Pozisyon Büyüklüğü ($)</label>
-        <input type="number" id="f-possize" placeholder="Örn: 1000" step="any" oninput="recalc()">
+        <label>Pozisyon ($)</label>
+        <input type="number" id="f-possize" placeholder="1000" step="any" oninput="recalc()" style="padding:9px 12px;font-size:13px">
       </div>
       <!-- AUTO CALC -->
       <div class="calc-box" id="calc-box">
@@ -502,7 +518,7 @@
             <input type="checkbox" value="Breakout" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Breakout
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
-            <input type="checkbox" value="Trend Takibi" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Trend Takibi
+            <input type="checkbox" value="MSB Backtest" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> MSB Backtest
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="Destek/Direnç" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Destek/Direnç
@@ -514,7 +530,7 @@
             <input type="checkbox" value="EMA Crossover" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> EMA Crossover
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
-            <input type="checkbox" value="Supply & Demand" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Supply & Demand
+            <input type="checkbox" value="Kırılım Backtest" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Kırılım Backtest
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="VWAP" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> VWAP
@@ -571,12 +587,13 @@
       </div>
       <div class="form-group">
         <label>Setup Kalitesi</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
-          <button type="button" class="quality-btn" id="sq-aplus" onclick="setSetupQuality('A+')">A+ Mükemmel</button>
-          <button type="button" class="quality-btn" id="sq-a" onclick="setSetupQuality('A')">A İyi</button>
-          <button type="button" class="quality-btn" id="sq-b" onclick="setSetupQuality('B')">B Orta</button>
-          <button type="button" class="quality-btn" id="sq-c" onclick="setSetupQuality('C')">C Zayıf</button>
-        </div>
+        <select id="f-quality" onchange="setSetupQuality(this.value)" style="padding:9px 12px;font-size:13px">
+          <option value="">— seç —</option>
+          <option value="A+">A+ Mükemmel</option>
+          <option value="A">A İyi</option>
+          <option value="B">B Orta</option>
+          <option value="C">C Zayıf</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Plan Uyumu</label>
@@ -881,18 +898,19 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">➕ Kademe Ekle</div>
-    <div id="add-position-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--muted)"></div>
-    <div class="form-group">
-      <label>Yeni Giriş Fiyatı</label>
-      <input type="number" id="ap-price" placeholder="0.00" step="any" oninput="recalcAddPosition()">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch;margin-bottom:14px">
+      <div id="add-position-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.6;color:var(--text)"></div>
+      <input type="date" id="ap-date" style="width:auto;padding:8px 10px;font-size:12px">
     </div>
-    <div class="form-group">
-      <label>Ek Pozisyon Büyüklüğü ($)</label>
-      <input type="number" id="ap-size" placeholder="Örn: 500" step="any" oninput="recalcAddPosition()">
-    </div>
-    <div class="form-group">
-      <label>Tarih</label>
-      <input type="date" id="ap-date">
+    <div class="row-2">
+      <div class="form-group">
+        <label>Yeni Giriş Fiyatı</label>
+        <input type="number" id="ap-price" placeholder="0.00" step="any" oninput="recalcAddPosition()">
+      </div>
+      <div class="form-group">
+        <label>Ek Pozisyon ($)</label>
+        <input type="number" id="ap-size" placeholder="Örn: 500" step="any" oninput="recalcAddPosition()">
+      </div>
     </div>
     <div class="calc-box" id="ap-calc" style="margin-bottom:16px">
       <div class="calc-empty">Fiyat ve miktar gir → yeni ortalama hesaplanır</div>
@@ -906,20 +924,19 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">📤 Kısmi Çıkış</div>
-    <div id="partial-close-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.8;color:var(--muted)"></div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch;margin-bottom:14px">
+      <div id="partial-close-summary" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-family:'Space Mono',monospace;font-size:12px;line-height:1.6;color:var(--text)"></div>
+      <input type="date" id="pc-date" style="width:auto;padding:8px 10px;font-size:12px">
+    </div>
     <div class="row-2">
       <div class="form-group">
         <label>Çıkış Fiyatı</label>
         <input type="number" id="pc-price" placeholder="0.00" step="any" oninput="recalcPartialClose()">
       </div>
       <div class="form-group">
-        <label>Tarih</label>
-        <input type="date" id="pc-date">
+        <label>Kapatılan ($)</label>
+        <input type="number" id="pc-size" placeholder="Örn: 500" step="any" oninput="recalcPartialClose()">
       </div>
-    </div>
-    <div class="form-group">
-      <label>Kapatılan Miktar ($)</label>
-      <input type="number" id="pc-size" placeholder="Örn: 500" step="any" oninput="recalcPartialClose()">
     </div>
     <div class="calc-box" id="pc-calc" style="margin-bottom:16px">
       <div class="calc-empty">Fiyat ve miktar gir → kısmi P&L hesaplanır</div>
@@ -962,6 +979,46 @@ let selectedSetupQuality = null;
 let selectedMistakes = [];
 let screenshotData = null;
 let currentFilter = 'all';
+
+// ── SYMBOL PRESETS ──
+const SYMBOL_PRESETS = {
+  'Kripto': ['BTC', 'ETH', 'SOL', 'LTC', 'XRP', 'AVAX'],
+  'Emtia':  ['Altın', 'Gümüş', 'UKOIL'],
+};
+
+function onMarketChange() {
+  const market = document.getElementById('f-market').value;
+  const sel = document.getElementById('f-symbol-select');
+  const customWrap = document.getElementById('symbol-custom-wrap');
+  const custom = document.getElementById('f-symbol');
+  const presets = SYMBOL_PRESETS[market];
+  sel.innerHTML = '<option value="">— seç —</option>';
+  if (presets) {
+    presets.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+    sel.innerHTML += '<option value="__other__">Diğer...</option>';
+    sel.style.display = '';
+    customWrap.style.display = 'none';
+    custom.value = '';
+  } else {
+    // No presets — always show text input
+    sel.style.display = 'none';
+    customWrap.style.display = '';
+  }
+}
+
+function onSymbolPresetChange() {
+  const sel = document.getElementById('f-symbol-select');
+  const customWrap = document.getElementById('symbol-custom-wrap');
+  const custom = document.getElementById('f-symbol');
+  if (sel.value === '__other__') {
+    customWrap.style.display = '';
+    custom.value = '';
+    custom.focus();
+  } else {
+    customWrap.style.display = 'none';
+    custom.value = sel.value;
+  }
+}
 let cfOutcome = null;
 let cfPnl = null;
 let cfReview = { again: null, exit: null, plan: null };
@@ -976,7 +1033,7 @@ function saveDraft() {
   const draft = {
     symbol: document.getElementById('f-symbol').value,
     date: document.getElementById('f-date').value,
-    time: document.getElementById('f-time').value,
+    time: '',
     tradeNumber: document.getElementById('f-trade-number').value,
     entry: document.getElementById('f-entry').value,
     sl: document.getElementById('f-sl').value,
@@ -1022,9 +1079,20 @@ function applyDraft() {
   if (!raw) return;
   try {
     const d = JSON.parse(raw);
-    if (d.symbol) document.getElementById('f-symbol').value = d.symbol;
+    if (d.market) { document.getElementById('f-market').value = d.market; onMarketChange(); }
+    if (d.symbol) {
+      const sel = document.getElementById('f-symbol-select');
+      const preset = SYMBOL_PRESETS[d.market];
+      if (preset && preset.includes(d.symbol)) {
+        sel.value = d.symbol;
+        document.getElementById('f-symbol').value = d.symbol;
+      } else {
+        if (preset) sel.value = '__other__';
+        document.getElementById('symbol-custom-wrap').style.display = '';
+        document.getElementById('f-symbol').value = d.symbol;
+      }
+    }
     if (d.date) document.getElementById('f-date').value = d.date;
-    if (d.time) document.getElementById('f-time').value = d.time;
     if (d.tradeNumber) document.getElementById('f-trade-number').value = d.tradeNumber;
     if (d.entry) document.getElementById('f-entry').value = d.entry;
     if (d.sl) document.getElementById('f-sl').value = d.sl;
@@ -1032,7 +1100,6 @@ function applyDraft() {
     if (d.posSize) document.getElementById('f-possize').value = d.posSize;
     if (d.note) document.getElementById('f-note').value = d.note;
     if (d.tf) document.getElementById('f-tf').value = d.tf;
-    if (d.market) document.getElementById('f-market').value = d.market;
     if (d.emotion_val) document.getElementById('f-emotion').value = d.emotion_val;
     if (d.otherText) document.getElementById('strategy-other-text').value = d.otherText;
     if (d.fibLevel) document.getElementById('fib-level-custom').value = d.fibLevel;
@@ -1071,7 +1138,6 @@ function attachDraftListeners() {
 function init() {
   const now = new Date();
   document.getElementById('f-date').value = now.toISOString().slice(0,10);
-  document.getElementById('f-time').value = now.toTimeString().slice(0,5);
   renderTradeList();
   updateStats();
   attachDraftListeners();
@@ -1079,6 +1145,7 @@ function init() {
   updateDisciplineWarnings();
   attachHandleListeners();
   loadCompactPref();
+  onMarketChange();
 }
 
 function switchPage(page, btn) {
@@ -1233,12 +1300,9 @@ function setEmotion(val) {
 }
 
 function setSetupQuality(q) {
-  selectedSetupQuality = q;
-  const map = {'A+':'aplus','A':'a','B':'b','C':'c'};
-  ['A+','A','B','C'].forEach(v => {
-    const btn = document.getElementById('sq-' + map[v]);
-    if (btn) btn.className = 'quality-btn' + (v === q ? ' active-' + map[v] : '');
-  });
+  selectedSetupQuality = q || null;
+  const sel = document.getElementById('f-quality');
+  if (sel && sel.value !== (q || '')) sel.value = q || '';
 }
 
 function toggleMistake(el) {
@@ -1481,7 +1545,7 @@ function doSaveTrade() {
     id: editingTradeId || Date.now(),
     symbol,
     date: document.getElementById('f-date').value,
-    time: document.getElementById('f-time').value,
+    time: '',
     tradeNumber,
     direction: selectedDir,
     timeframe: document.getElementById('f-tf').value,
@@ -1551,6 +1615,12 @@ function resetForm() {
   
   setDir('long');
   setTradeStatus('open');
+  // Reset market/symbol/quality selects
+  const marketSel = document.getElementById('f-market');
+  if (marketSel) marketSel.value = 'Kripto';
+  const qualitySel = document.getElementById('f-quality');
+  if (qualitySel) qualitySel.value = '';
+  onMarketChange();
   recalc();
 }
 
@@ -1980,90 +2050,123 @@ function showDetail(id, openClose = false) {
   const hasPnl = t.pnl !== null && t.pnl !== undefined;
   const pnlStr = t.isOpen ? '—' : !hasPnl ? '—' : t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
 
-  const rows = [
-    ['Yön', `<span class="${t.direction==='long'?'pos':'neg'}">${t.direction.toUpperCase()}</span>`],
-    ['Durum', t.isOpen ? '<span class="open-col">⏳ AÇIK</span>' : `<span class="${t.outcome==='win'?'pos':t.outcome==='loss'?'neg':''}">${t.outcome.toUpperCase()}</span>`],
-    (!t.isOpen && hasPnl) ? ['P&L', `<span class="${t.pnl>=0?'pos':'neg'}">${pnlStr}</span>`] : null,
-    t.tradeNumber ? ['Gün İçi Sıra', `#${t.tradeNumber}`] : null,
-    t.posSize ? ['Pozisyon', `$${t.posSize.toLocaleString()}`] : null,
-    (t.entry && t.sl && t.posSize) ? ['Risk ($)', `-$${(t.posSize*Math.abs((t.sl-t.entry)/t.entry)).toFixed(2)}`] : null,
-    (t.entry && t.tp && t.posSize) ? ['Hedef Kâr ($)', `+$${(t.posSize*Math.abs((t.tp-t.entry)/t.entry)).toFixed(2)}`] : null,
-    t.rr ? ['R:R Oranı', `1 : ${t.rr}`] : null,
-    ['Zaman Dilimi', t.timeframe],
-    ['Piyasa', t.market],
-    t.entry ? ['Giriş', t.entries && t.entries.length > 1 ? `${t.entry} <span style="color:var(--muted);font-size:11px">(${t.entries.length}× ort.)</span>` : t.entry] : null,
-    t.sl ? ['Stop Loss', t.sl] : null,
-    t.tp ? ['Take Profit', t.tp] : null,
-    t.exitPrice ? ['Çıkış Fiyatı', t.exitPrice] : null,
-    t.exitDate ? ['Çıkış Tarihi', t.exitDate] : t.exitTime ? ['Çıkış Saati', t.exitTime] : null,
-    (() => {
-      const strats = Array.isArray(t.strategies) ? t.strategies : t.strategy ? [t.strategy] : [];
-      return strats.length ? ['Strateji', strats.join(' + ')] : null;
-    })(),
-    t.setupQuality ? ['Setup Kalitesi', t.setupQuality] : null,
-    ['Duygu', t.emotion || '—'],
-    t.planFollowed ? ['Plan (Giriş)', t.planFollowed==='yes'?'✓ Plan dahili':'✗ Plansız'] : null,
-    t.note ? ['Giriş Notu', t.note] : null,
-  ];
+  // Calculated derived values
+  const dirCls = t.direction === 'long' ? 'pos' : 'neg';
+  const outcomeCls = t.isOpen ? 'open-col' : t.outcome === 'win' ? 'pos' : t.outcome === 'loss' ? 'neg' : '';
+  const outcomeLbl = t.isOpen ? '⏳ AÇIK' : t.outcome.toUpperCase();
+  const riskVal = (t.entry && t.sl && t.posSize) ? `-$${(t.posSize*Math.abs((t.sl-t.entry)/t.entry)).toFixed(2)}` : null;
+  const targetVal = (t.entry && t.tp && t.posSize) ? `+$${(t.posSize*Math.abs((t.tp-t.entry)/t.entry)).toFixed(2)}` : null;
+  const stratsArr = Array.isArray(t.strategies) ? t.strategies : t.strategy ? [t.strategy] : [];
 
-  // Kademe detayları
-  if (t.entries && t.entries.length > 1) {
-    rows.push('__sep_entries__');
-    t.entries.forEach((e, i) => rows.push([`Kademe ${i+1}`, `${e.price}  ·  $${e.size?.toLocaleString()}  ·  ${e.date}`]));
+  // ROW GROUPS — each is a compact inline row
+  const groups = [];
+
+  // Status chips row: LONG · AÇIK · #1 · H4
+  const chips = [
+    `<span class="${dirCls}" style="font-weight:800">${t.direction.toUpperCase()}</span>`,
+    `<span class="${outcomeCls}" style="font-weight:800">${outcomeLbl}</span>`,
+    t.tradeNumber ? `<span style="color:var(--muted)">#${t.tradeNumber}</span>` : null,
+    t.timeframe ? `<span style="color:var(--muted)">${t.timeframe}</span>` : null,
+  ].filter(Boolean);
+  groups.push({ type: 'chips', content: chips.join(' <span style="color:var(--border)">·</span> ') });
+
+  // Poz + R:R pair
+  const pair1 = [];
+  if (t.posSize) pair1.push({ k: 'Poz', v: `$${t.posSize.toLocaleString()}` });
+  if (t.rr) pair1.push({ k: 'R:R', v: `1 : ${t.rr}` });
+  if (pair1.length) groups.push({ type: 'row', fields: pair1 });
+
+  // Risk + Hedef pair
+  const pair2 = [];
+  if (riskVal) pair2.push({ k: 'Risk', v: riskVal, cls: 'neg' });
+  if (targetVal) pair2.push({ k: 'Hedef', v: targetVal, cls: 'pos' });
+  if (pair2.length) groups.push({ type: 'row', fields: pair2 });
+
+  // P&L standalone (closed)
+  if (!t.isOpen && hasPnl) {
+    groups.push({ type: 'row', fields: [{ k: 'P&L', v: pnlStr, cls: t.pnl >= 0 ? 'pos' : 'neg', big: true }] });
   }
 
-  // Kısmi çıkış detayları
+  // Giriş + SL + TP triple
+  const priceFields = [];
+  if (t.entry) {
+    const entryDisp = t.entries && t.entries.length > 1
+      ? `${t.entry} <span style="color:var(--muted);font-size:10px">(${t.entries.length}×)</span>`
+      : String(t.entry);
+    priceFields.push({ k: 'Giriş', v: entryDisp });
+  }
+  if (t.sl) priceFields.push({ k: 'SL', v: String(t.sl) });
+  if (t.tp) priceFields.push({ k: 'TP', v: String(t.tp) });
+  if (priceFields.length) groups.push({ type: 'row', fields: priceFields });
+
+  // Exit info (closed)
+  const exitFields = [];
+  if (t.exitPrice) exitFields.push({ k: 'Çıkış', v: String(t.exitPrice) });
+  if (t.exitDate || t.exitTime) exitFields.push({ k: 'Çıkış T.', v: t.exitDate || t.exitTime });
+  if (exitFields.length) groups.push({ type: 'row', fields: exitFields });
+
+  // Setup + Plan + Duygu
+  const meta = [];
+  if (t.setupQuality) meta.push({ k: 'Setup', v: t.setupQuality });
+  if (t.planFollowed) meta.push({ k: 'Plan', v: t.planFollowed === 'yes' ? '✓ Dahili' : '✗ Plansız' });
+  if (t.emotion) meta.push({ k: 'Duygu', v: t.emotion });
+  if (meta.length) groups.push({ type: 'row', fields: meta });
+
+  // Strateji (full)
+  if (stratsArr.length) groups.push({ type: 'full', k: 'Strateji', v: stratsArr.join(' + ') });
+
+  // Not (full)
+  if (t.note) groups.push({ type: 'full', k: 'Giriş Notu', v: t.note });
+
+  // Kademe / Kısmi çıkış detayları
+  if (t.entries && t.entries.length > 1) {
+    groups.push({ type: 'sep', label: '── Kademeler', color: 'var(--accent)' });
+    t.entries.forEach((e, i) => groups.push({ type: 'full', k: `Kademe ${i+1}`, v: `${e.price}  ·  $${e.size?.toLocaleString()}  ·  ${e.date}` }));
+  }
   if (t.partialExits && t.partialExits.length > 0) {
-    rows.push('__sep_partials__');
+    groups.push({ type: 'sep', label: '── Kısmi Çıkışlar', color: 'var(--accent)' });
     t.partialExits.forEach((p, i) => {
-      rows.push([`Kısmi Çıkış ${i+1}`, `${p.price}  ·  $${p.size?.toLocaleString()}  ·  <span class="${p.pnl>=0?'pos':'neg'}">${p.pnl>=0?'+':''}$${p.pnl.toFixed(2)}</span>${p.note?' · '+p.note:''}`]);
+      groups.push({ type: 'full', k: `Kısmi ${i+1}`, v: `${p.price}  ·  $${p.size?.toLocaleString()}  ·  <span class="${p.pnl>=0?'pos':'neg'}">${p.pnl>=0?'+':''}$${p.pnl.toFixed(2)}</span>${p.note?' · '+p.note:''}` });
     });
     const totalRealized = t.partialExits.reduce((s,p)=>s+p.pnl, 0);
-    rows.push(['Toplam Realize', `<span class="${totalRealized>=0?'pos':'neg'}">${totalRealized>=0?'+':''}$${totalRealized.toFixed(2)}</span>`]);
+    groups.push({ type: 'row', fields: [{ k: 'Toplam Realize', v: `${totalRealized>=0?'+':''}$${totalRealized.toFixed(2)}`, cls: totalRealized >= 0 ? 'pos' : 'neg' }] });
   }
-
+  // Review + mistakes
   if (!t.isOpen && t.review && (t.review.again || t.review.exit || t.review.plan || t.closeNote)) {
-    rows.push('__sep__');
-    if (t.review.again) rows.push(['Tekrar alır mıydın?', rAgain[t.review.again]||t.review.again]);
-    if (t.review.exit) rows.push(['Çıkış zamanlaması', rExit[t.review.exit]||t.review.exit]);
-    if (t.review.plan) rows.push(['Plan uyumu (çıkış)', rPlan[t.review.plan]||t.review.plan]);
-    if (t.closeNote) rows.push(['Kapanış Notu', t.closeNote]);
+    groups.push({ type: 'sep', label: '── Kapanış Değerlendirmesi', color: 'var(--accent)' });
+    if (t.review.again) groups.push({ type: 'full', k: 'Tekrar alır mıydın?', v: rAgain[t.review.again]||t.review.again });
+    if (t.review.exit) groups.push({ type: 'full', k: 'Çıkış zamanlaması', v: rExit[t.review.exit]||t.review.exit });
+    if (t.review.plan) groups.push({ type: 'full', k: 'Plan uyumu (çıkış)', v: rPlan[t.review.plan]||t.review.plan });
+    if (t.closeNote) groups.push({ type: 'full', k: 'Kapanış Notu', v: t.closeNote });
   }
-
   if (!t.isOpen && t.mistakes && t.mistakes.length > 0) {
-    rows.push('__sep2__');
-    rows.push(['Yapılan Hatalar', t.mistakes.join(', ')]);
+    groups.push({ type: 'sep', label: '── Hatalar', color: 'var(--red)' });
+    groups.push({ type: 'full', k: 'Yapılan Hatalar', v: t.mistakes.join(', ') });
   }
 
-  document.getElementById('modal-title').textContent = `${t.symbol} — ${t.date}`;
+  document.getElementById('modal-title').textContent = `${t.symbol}${t.market ? ' · ' + t.market : ''} — ${t.date}`;
 
-  // Compact 2-column grid for detail rows
-  const renderRows = rows.filter(Boolean);
-  let bodyHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">';
-  let i = 0;
-  while (i < renderRows.length) {
-    const r = renderRows[i];
-    // Separators always full width
-    if (typeof r === 'string' && r.startsWith('__sep')) {
-      bodyHtml += `</div>`;
-      if (r === '__sep__') bodyHtml += `<div class="section-sep" style="color:var(--accent);margin:10px 0 6px">── Kapanış Değerlendirmesi</div>`;
-      else if (r === '__sep2__') bodyHtml += `<div class="section-sep" style="color:var(--red);margin:10px 0 6px">── Hatalar</div>`;
-      else if (r === '__sep_entries__') bodyHtml += `<div class="section-sep" style="color:var(--accent);margin:10px 0 6px">── Kademeler</div>`;
-      else if (r === '__sep_partials__') bodyHtml += `<div class="section-sep" style="color:var(--accent);margin:10px 0 6px">── Kısmi Çıkışlar</div>`;
-      bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0">';
-      i++; continue;
+  // Render groups
+  let bodyHtml = '';
+  groups.forEach(g => {
+    if (g.type === 'chips') {
+      bodyHtml += `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:13px;letter-spacing:0.5px">${g.content}</div>`;
+    } else if (g.type === 'sep') {
+      bodyHtml += `<div class="section-sep" style="color:${g.color};margin:10px 0 4px">${g.label}</div>`;
+    } else if (g.type === 'full') {
+      bodyHtml += `<div style="padding:7px 0;border-bottom:1px solid var(--border)"><div style="font-size:10px;color:#b0b0c8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">${g.k}</div><div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;word-break:break-word">${g.v}</div></div>`;
+    } else if (g.type === 'row') {
+      const n = g.fields.length;
+      const gridCols = n === 1 ? '1fr' : n === 2 ? '1fr 1fr' : n === 3 ? '1.2fr 1fr 1fr' : 'repeat(' + n + ', 1fr)';
+      bodyHtml += `<div style="display:grid;grid-template-columns:${gridCols};gap:0 12px;padding:7px 0;border-bottom:1px solid var(--border)">`;
+      g.fields.forEach(f => {
+        const valStyle = `font-family:'Space Mono',monospace;font-size:${f.big?'16px':'13px'};font-weight:700;word-break:break-word`;
+        const valClass = f.cls ? ` class="${f.cls}"` : '';
+        bodyHtml += `<div style="min-width:0"><div style="font-size:10px;color:#b0b0c8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">${f.k}</div><div${valClass} style="${valStyle}">${f.v}</div></div>`;
+      });
+      bodyHtml += '</div>';
     }
-    const [k, v] = r;
-    // Long values (notes, strategies) get full width
-    const isLong = String(v).length > 20 || k.includes('Not') || k.includes('Strateji') || k.includes('Hatalar') || k.includes('Kademe') || k.includes('Kısmi');
-    if (isLong) {
-      bodyHtml += `<div style="grid-column:1/-1;padding:9px 0;border-bottom:1px solid var(--border)"><div style="font-size:10px;color:#9090b0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">${k}</div><div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;word-break:break-word">${v}</div></div>`;
-    } else {
-      bodyHtml += `<div style="padding:9px 6px 9px 0;border-bottom:1px solid var(--border)"><div style="font-size:10px;color:#9090b0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">${k}</div><div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700">${v}</div></div>`;
-    }
-    i++;
-  }
-  bodyHtml += '</div>';
+  });
 
   if (t.screenshot || t.closeScreenshot) {
     bodyHtml += `<div style="margin-top:14px"><div class="section-sep" style="color:var(--muted);margin-bottom:8px">── Görseller</div>`;
@@ -2125,15 +2228,29 @@ function editTrade(e, id) {
   
   // Fill form
   editingTradeId = t.id;
-  document.getElementById('f-symbol').value = t.symbol || '';
   document.getElementById('f-date').value = t.date || '';
-  document.getElementById('f-time').value = t.time || '';
   document.getElementById('f-trade-number').value = t.tradeNumber || '';
   document.getElementById('f-entry').value = t.entry || '';
   document.getElementById('f-sl').value = t.sl || '';
   document.getElementById('f-tp').value = t.tp || '';
   document.getElementById('f-possize').value = t.posSize || '';
   document.getElementById('f-note').value = t.note || '';
+
+  // Market + Symbol restore
+  document.getElementById('f-market').value = t.market || 'Kripto';
+  onMarketChange();
+  const sel = document.getElementById('f-symbol-select');
+  const preset = SYMBOL_PRESETS[t.market || 'Kripto'];
+  if (preset && preset.includes(t.symbol)) {
+    sel.value = t.symbol;
+    document.getElementById('f-symbol').value = t.symbol;
+    document.getElementById('symbol-custom-wrap').style.display = 'none';
+  } else if (t.symbol) {
+    if (preset) sel.value = '__other__';
+    document.getElementById('symbol-custom-wrap').style.display = '';
+    document.getElementById('f-symbol').value = t.symbol;
+  }
+  if (t.timeframe) document.getElementById('f-tf').value = t.timeframe;
   
   setSelectedStrategies(t.strategies || t.strategy || []);
   setDir(t.direction || 'long');
