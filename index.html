@@ -1541,8 +1541,11 @@ function doSaveTrade() {
   const tradeNumber = parseInt(document.getElementById('f-trade-number').value) || null;
   const emotionVal = document.getElementById('f-emotion').value || null;
 
-  const trade = {
-    id: editingTradeId || Date.now(),
+  // When editing, preserve all fields that aren't in this form (partials, review, close data, screenshots, mistakes)
+  const existing = editingTradeId ? trades.find(t => t.id === editingTradeId) : null;
+
+  // Only save fields the user controls from the add/edit form
+  const formFields = {
     symbol,
     date: document.getElementById('f-date').value,
     time: '',
@@ -1551,21 +1554,52 @@ function doSaveTrade() {
     timeframe: document.getElementById('f-tf').value,
     market: document.getElementById('f-market').value,
     entry, sl, tp, posSize: pos, rr,
-    pnl,
-    outcome,
-    isOpen,
-    exitPrice,
-    exitDate,
     strategies,
     emotion: emotionVal,
     setupQuality: selectedSetupQuality,
-    mistakes: [],
     planFollowed: selectedPlan,
     note: document.getElementById('f-note').value.trim(),
-    createdAt: editingTradeId ? trades.find(t=>t.id===editingTradeId)?.createdAt : new Date().toISOString(),
-    closeNote: null,
-    review: null
+    screenshot: screenshotData || (existing ? existing.screenshot : null),
   };
+
+  // Status + outcome handling: form controls these
+  const statusFields = {
+    isOpen,
+    outcome,
+    pnl,
+    exitPrice,
+    exitDate,
+  };
+
+  let trade;
+  if (existing) {
+    // Edit mode: merge over existing, preserving fields that aren't in the form
+    trade = { ...existing, ...formFields, ...statusFields };
+    // Only touch close data if the trade is being closed via this form
+    // (i.e. it was open and now being closed, or already closed and user edits exit price)
+    if (!isOpen && (existing.isOpen || exitPrice)) {
+      // Keep existing review/closeNote/mistakes if already set (close modal manages those)
+      trade.review = existing.review || null;
+      trade.closeNote = existing.closeNote || null;
+      trade.mistakes = existing.mistakes || [];
+      trade.closeScreenshot = existing.closeScreenshot || null;
+    }
+    // Preserve partials/entries if any
+    if (existing.partialExits) trade.partialExits = existing.partialExits;
+    if (existing.entries) trade.entries = existing.entries;
+  } else {
+    // New trade
+    trade = {
+      id: Date.now(),
+      ...formFields,
+      ...statusFields,
+      mistakes: [],
+      closeNote: null,
+      review: null,
+      closeScreenshot: null,
+      createdAt: new Date().toISOString(),
+    };
+  }
 
   if (editingTradeId) {
     const idx = trades.findIndex(t => t.id === editingTradeId);
