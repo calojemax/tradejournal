@@ -1094,8 +1094,80 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// v3 uses its own clean key - no migration from old test data
-let trades = JSON.parse(localStorage.getItem('tradelog_v3') || '[]');
+// Trades stored in IndexedDB (unlimited capacity vs localStorage's 5-10MB limit)
+// localStorage used as legacy fallback and for migration
+let trades = JSON.parse(localStorage.getItem('tradelog_v3') || '[]'); // sync fallback, replaced by IndexedDB load in init()
+
+// ── INDEXEDDB STORAGE LAYER ──
+const DB_NAME = 'tradelog_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'trades';
+let dbInstance = null;
+let dbReady = false;
+
+function openDB() {
+  if (dbInstance) return Promise.resolve(dbInstance);
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('IndexedDB not supported')); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    req.onsuccess = e => { dbInstance = e.target.result; dbReady = true; resolve(dbInstance); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function dbLoadTrades() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME], 'readonly');
+      const req = tx.objectStore(STORE_NAME).get('all');
+      req.onsuccess = e => resolve(e.target.result || null);
+      req.onerror = e => reject(e.target.error);
+    });
+  } catch (err) {
+    console.warn('[db] Load failed, using localStorage:', err);
+    return null;
+  }
+}
+
+async function dbSaveTrades(tradesArray) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME], 'readwrite');
+    tx.objectStore(STORE_NAME).put(tradesArray, 'all');
+    tx.oncomplete = () => resolve({ ok: true });
+    tx.onerror = () => reject(tx.error || new Error('Transaction failed'));
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+  });
+}
+
+async function initStorage() {
+  const dbTrades = await dbLoadTrades();
+  if (dbTrades && dbTrades.length > 0) {
+    // IndexedDB has data, use it
+    trades = dbTrades;
+    console.log('[storage] Loaded', trades.length, 'trades from IndexedDB');
+  } else {
+    // Migration: localStorage → IndexedDB
+    const legacy = JSON.parse(localStorage.getItem('tradelog_v3') || '[]');
+    if (legacy.length > 0) {
+      trades = legacy;
+      try {
+        await dbSaveTrades(trades);
+        console.log('[migration] Moved', trades.length, 'trades to IndexedDB');
+        // Keep localStorage as backup for now, clear later if desired
+      } catch (err) {
+        console.warn('[migration] Failed:', err);
+      }
+    }
+  }
+}
 let selectedDir = 'long';
 let selectedTradeStatus = 'open';
 let entryOutcome = null;
@@ -1353,9 +1425,11 @@ function attachDraftListeners() {
   document.querySelectorAll('#strategy-checkboxes input[type="checkbox"]').forEach(cb => cb.addEventListener('change', saveDraft));
 }
 
-function init() {
+async function init() {
   const now = new Date();
   document.getElementById('f-date').value = now.toISOString().slice(0,10);
+  // Load trades from IndexedDB (async). Falls back to localStorage if IndexedDB unavailable.
+  await initStorage();
   renderTradeList();
   updateStats();
   attachDraftListeners();
@@ -1370,11 +1444,13 @@ function init() {
 function checkStorageHealth() {
   try {
     const size = (JSON.stringify(trades).length / 1024 / 1024);
-    // Warn if approaching 4MB (most browsers limit at 5-10MB)
-    if (size > 4) {
-      console.warn(`[storage] High usage: ${size.toFixed(2)}MB`);
-      const sizeMsg = `⚠️ Depolama: ${size.toFixed(1)}MB · Yedek al + screenshot temizle`;
-      setTimeout(() => showToast(sizeMsg, 'err'), 1500);
+    // Only warn for extreme usage now that we use IndexedDB (which supports much more)
+    if (size > 50) {
+      console.warn(`[storage] Very high usage: ${size.toFixed(2)}MB`);
+    }
+    // Check IndexedDB availability
+    if (!window.indexedDB) {
+      setTimeout(() => showToast('⚠️ IndexedDB kullanılamıyor — localStorage limitine takılabilirsin', 'err'), 1500);
     }
   } catch(e) {}
 }
@@ -1859,15 +1935,7 @@ function doSaveTrade() {
     trades.unshift(trade);
   }
 
-  const saveResult = saveData();
-  if (!saveResult || saveResult.ok === false) {
-    // Rollback: remove the trade we just added/updated
-    if (!editingTradeId) {
-      trades = trades.filter(x => x.id !== trade.id);
-    }
-    // Don't reset form so user can retry or remove screenshots
-    return;
-  }
+  saveData(); // async IndexedDB write (fire-and-forget, errors shown via toast)
   localStorage.removeItem(DRAFT_KEY);
   showToast(editingTradeId ? '✓ Güncellendi!' : isOpen ? '⏳ Açık pozisyon kaydedildi!' : '✓ Kaydedildi!');
   resetForm();
@@ -2762,26 +2830,33 @@ function resetAllData() {
   if (confirm('Tüm işlemleri silmek istediğine emin misin? Bu işlem geri alınamaz.')) {
     trades = [];
     saveData();
+    // Also clear legacy localStorage
+    try { localStorage.removeItem('tradelog_v3'); localStorage.removeItem('tradelog_v3_backup'); } catch(e) {}
     renderTradeList();
     updateStats();
     showToast('✓ Tüm veriler silindi');
   }
 }
 
+// Fire-and-forget save: writes to IndexedDB in background.
+// localStorage used as small backup (first 50 trades without screenshots) for safety.
+let _pendingSaves = 0;
 function saveData() {
-  try {
-    const payload = JSON.stringify(trades);
-    localStorage.setItem('tradelog_v3', payload);
-    return { ok: true };
-  } catch (err) {
-    // QuotaExceededError or other storage error
-    const mb = (JSON.stringify(trades).length / 1024 / 1024).toFixed(2);
-    const msg = `⚠️ Kaydedilemedi! Depolama dolu (${mb}MB). Eski screenshot'ları silmek gerekebilir.`;
-    console.error('[saveData] Storage failed:', err);
-    showToast(msg, 'err');
-    alert(msg + '\n\nHata: ' + (err.name || 'Unknown') + '\n\nÖneri: EXCEL ile yedek al, sonra bazı trade\'leri sil veya screenshot\'ları kaldır.');
-    return { ok: false, error: err };
-  }
+  _pendingSaves++;
+  dbSaveTrades(trades).then(() => {
+    // Optional lightweight localStorage backup (trade metadata only, no screenshots)
+    try {
+      const slim = trades.slice(0, 100).map(t => {
+        const { screenshot, closeScreenshot, ...rest } = t;
+        return rest;
+      });
+      localStorage.setItem('tradelog_v3_backup', JSON.stringify(slim));
+    } catch(e) { /* ignore - backup is optional */ }
+  }).catch(err => {
+    console.error('[saveData] IndexedDB failed:', err);
+    showToast(`⚠️ Kaydedilemedi: ${err.name || err.message || 'Hata'}`, 'err');
+  }).finally(() => _pendingSaves--);
+  return { ok: true }; // Optimistic - IndexedDB rarely fails
 }
 
 function showToast(msg, type) {
