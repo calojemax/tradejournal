@@ -1192,12 +1192,30 @@ function handleInlineCloseScreenshot(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    inlineCloseScreenshotData = e.target.result;
-    document.getElementById('inline-close-screenshot-img').src = e.target.result;
-    document.getElementById('inline-close-screenshot-preview').style.display = 'block';
-    document.getElementById('inline-close-screenshot-placeholder').style.display = 'none';
-    document.getElementById('inline-close-screenshot-remove').style.display = 'block';
-    document.getElementById('inline-close-screenshot-drop').style.borderColor = 'var(--accent)';
+    // Compress via canvas before storing to localStorage
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxDim = 1280;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.75);
+      inlineCloseScreenshotData = compressed;
+      document.getElementById('inline-close-screenshot-img').src = compressed;
+      document.getElementById('inline-close-screenshot-preview').style.display = 'block';
+      document.getElementById('inline-close-screenshot-placeholder').style.display = 'none';
+      document.getElementById('inline-close-screenshot-remove').style.display = 'block';
+      document.getElementById('inline-close-screenshot-drop').style.borderColor = 'var(--accent)';
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -1346,6 +1364,19 @@ function init() {
   attachHandleListeners();
   loadCompactPref();
   onMarketChange();
+  checkStorageHealth();
+}
+
+function checkStorageHealth() {
+  try {
+    const size = (JSON.stringify(trades).length / 1024 / 1024);
+    // Warn if approaching 4MB (most browsers limit at 5-10MB)
+    if (size > 4) {
+      console.warn(`[storage] High usage: ${size.toFixed(2)}MB`);
+      const sizeMsg = `⚠️ Depolama: ${size.toFixed(1)}MB · Yedek al + screenshot temizle`;
+      setTimeout(() => showToast(sizeMsg, 'err'), 1500);
+    }
+  } catch(e) {}
 }
 
 function switchPage(page, btn) {
@@ -1572,8 +1603,9 @@ function _openCropper(src) {
 
 function confirmCrop() {
   if (!cropperInstance) return;
-  const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1920, maxHeight: 1920, imageSmoothingQuality: 'high' });
-  const data = canvas.toDataURL('image/jpeg', 0.85);
+  // Compress more aggressively to avoid localStorage quota issues
+  const canvas = cropperInstance.getCroppedCanvas({ maxWidth: 1280, maxHeight: 1280, imageSmoothingQuality: 'high' });
+  const data = canvas.toDataURL('image/jpeg', 0.75);
   cropperInstance.destroy(); cropperInstance = null;
   document.getElementById('crop-modal').style.display = 'none';
 
@@ -1827,7 +1859,15 @@ function doSaveTrade() {
     trades.unshift(trade);
   }
 
-  saveData();
+  const saveResult = saveData();
+  if (!saveResult || saveResult.ok === false) {
+    // Rollback: remove the trade we just added/updated
+    if (!editingTradeId) {
+      trades = trades.filter(x => x.id !== trade.id);
+    }
+    // Don't reset form so user can retry or remove screenshots
+    return;
+  }
   localStorage.removeItem(DRAFT_KEY);
   showToast(editingTradeId ? '✓ Güncellendi!' : isOpen ? '⏳ Açık pozisyon kaydedildi!' : '✓ Kaydedildi!');
   resetForm();
@@ -2728,7 +2768,21 @@ function resetAllData() {
   }
 }
 
-function saveData() { localStorage.setItem('tradelog_v3', JSON.stringify(trades)); }
+function saveData() {
+  try {
+    const payload = JSON.stringify(trades);
+    localStorage.setItem('tradelog_v3', payload);
+    return { ok: true };
+  } catch (err) {
+    // QuotaExceededError or other storage error
+    const mb = (JSON.stringify(trades).length / 1024 / 1024).toFixed(2);
+    const msg = `⚠️ Kaydedilemedi! Depolama dolu (${mb}MB). Eski screenshot'ları silmek gerekebilir.`;
+    console.error('[saveData] Storage failed:', err);
+    showToast(msg, 'err');
+    alert(msg + '\n\nHata: ' + (err.name || 'Unknown') + '\n\nÖneri: EXCEL ile yedek al, sonra bazı trade\'leri sil veya screenshot\'ları kaldır.');
+    return { ok: false, error: err };
+  }
+}
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
