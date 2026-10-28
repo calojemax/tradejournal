@@ -506,6 +506,120 @@
         <div class="calc-box" id="entry-calc-box" style="margin-top:8px">
           <div class="calc-empty">Çıkış fiyatı gir → Sonuç ve P&L otomatik hesaplanır</div>
         </div>
+
+        <!-- INLINE CLOSE REVIEW (only shown when KAPALI is selected) -->
+        <div id="close-review-inline" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div class="modal-section-title accent" style="color:var(--accent);margin-bottom:12px">🪞 Kapanış Değerlendirmesi</div>
+
+          <div class="form-group" style="margin-bottom:11px">
+            <label>Aynı setup tekrar gelse alır mıydın?</label>
+            <div class="three-toggle">
+              <button type="button" class="t3-btn" id="irq-again-yes" onclick="setInlineReview('again','yes')">✓ Kesinlikle</button>
+              <button type="button" class="t3-btn" id="irq-again-partial" onclick="setInlineReview('again','partial')">~ Belki</button>
+              <button type="button" class="t3-btn" id="irq-again-no" onclick="setInlineReview('again','no')">✗ Hayır</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:11px">
+            <label>Çıkış zamanlaması nasıldı?</label>
+            <div class="three-toggle">
+              <button type="button" class="t3-btn" id="irq-exit-early" onclick="setInlineReview('exit','early')">Erken çıktım</button>
+              <button type="button" class="t3-btn" id="irq-exit-right" onclick="setInlineReview('exit','right')">Doğru zamanlama</button>
+              <button type="button" class="t3-btn" id="irq-exit-late" onclick="setInlineReview('exit','late')">Geç kaldım</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:11px">
+            <label>Planıma ne kadar uydum?</label>
+            <div class="three-toggle">
+              <button type="button" class="t3-btn" id="irq-plan-yes" onclick="setInlineReview('plan','yes')">✓ Tam uydum</button>
+              <button type="button" class="t3-btn" id="irq-plan-partial" onclick="setInlineReview('plan','partial')">~ Kısmen</button>
+              <button type="button" class="t3-btn" id="irq-plan-no" onclick="setInlineReview('plan','no')">✗ Plansız</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:11px">
+            <label>⚠️ Yapılan Hatalar <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(birden fazla seçilebilir)</span></label>
+            <div style="margin-top:8px" id="inline-mistake-list">
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Hatasız">
+                <span class="mistake-name" style="color:var(--green)">✓ Hatasız</span>
+                <span class="mistake-desc" style="color:var(--muted)">Mükemmel uygulama</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="FOMO">
+                <span class="mistake-name">FOMO</span>
+                <span class="mistake-desc">Kaçırma korkusuyla girilen trade</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Erken Çıkış">
+                <span class="mistake-name">Erken Çıkış</span>
+                <span class="mistake-desc">Hedef beklemeden çıkıldı</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Geç Çıkış">
+                <span class="mistake-name">Geç Çıkış</span>
+                <span class="mistake-desc">Stop veya hedefi kaçırdın</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Overtrading">
+                <span class="mistake-name">Overtrading</span>
+                <span class="mistake-desc">Çok fazla trade</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Plansız">
+                <span class="mistake-name">Plansız</span>
+                <span class="mistake-desc">Plan olmadan girilen trade</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="İntikam">
+                <span class="mistake-name">İntikam</span>
+                <span class="mistake-desc">Kayıptan sonra intikam tradesi</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Yanlış Pozisyon">
+                <span class="mistake-name">Yanlış Pozisyon</span>
+                <span class="mistake-desc">Pozisyon boyutu hatalı</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Stop Yok Sayıldı">
+                <span class="mistake-name">Stop Yok Sayıldı</span>
+                <span class="mistake-desc">Stop loss taşındı/kaldırıldı</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Duygusal">
+                <span class="mistake-name">Duygusal</span>
+                <span class="mistake-desc">Duygusal karar</span>
+                <span class="mistake-plus">+</span>
+              </div>
+              <div class="mistake-item" onclick="toggleInlineMistake(this)" data-val="Kötü Zamanlama">
+                <span class="mistake-name">Kötü Zamanlama</span>
+                <span class="mistake-desc">Yanlış zaman diliminde giriş</span>
+                <span class="mistake-plus">+</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:11px">
+            <label>Kapanış Notu</label>
+            <textarea id="icf-note" placeholder="Ne öğrendin? Neyi farklı yapardın?" style="height:70px"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label>📸 Kapanış Görseli <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(opsiyonel · before/after)</span></label>
+            <div id="inline-close-screenshot-drop" style="border:2px dashed var(--border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:var(--surface2);transition:border-color 0.2s" onclick="document.getElementById('icf-screenshot').click()">
+              <div id="inline-close-screenshot-preview" style="display:none">
+                <img id="inline-close-screenshot-img" style="max-width:100%;border-radius:8px;margin-bottom:6px;cursor:pointer" alt="">
+                <div style="font-size:11px;color:var(--muted)">Yeniden yüklemek için tıkla</div>
+              </div>
+              <div id="inline-close-screenshot-placeholder">
+                <div style="font-size:24px;margin-bottom:4px">📷</div>
+                <div style="font-size:12px;color:var(--muted)">Kapanış görseli ekle</div>
+              </div>
+            </div>
+            <input type="file" id="icf-screenshot" accept="image/*" style="display:none" onchange="handleInlineCloseScreenshot(this)">
+            <button type="button" id="inline-close-screenshot-remove" style="display:none;width:100%;margin-top:6px;padding:7px;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:11px;font-family:'Space Mono',monospace;cursor:pointer" onclick="removeInlineCloseScreenshot()">✕ Kaldır</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -546,6 +660,18 @@
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="Haftalık H/L Likidite" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Haftalık H/L Likidite
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Hacim Uyumsuzluğu" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Hacim Uyumsuzluğu
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="POC" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> POC
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="nPOC" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> nPOC
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
+            <input type="checkbox" value="Trend Takibi" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Trend Takibi
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:500">
             <input type="checkbox" value="Diğer" id="strategy-other-cb" style="width:auto;padding:0;margin:0" onclick="checkOtherStrategy()"> Diğer
@@ -1025,6 +1151,78 @@ let cfReview = { again: null, exit: null, plan: null };
 let activeCloseId = null;
 let editingTradeId = null;
 
+// ── INLINE CLOSE REVIEW STATE (for + Ekle form when KAPALI selected) ──
+let inlineReview = { again: null, exit: null, plan: null };
+let inlineMistakes = [];
+let inlineCloseScreenshotData = null;
+
+function setInlineReview(key, val) {
+  inlineReview[key] = val;
+  const cls = { yes:'active-yes', no:'active-no', partial:'active-partial', early:'active-no', right:'active-yes', late:'active-partial' };
+  const groups = { again:['yes','partial','no'], exit:['early','right','late'], plan:['yes','partial','no'] };
+  groups[key].forEach(v => {
+    const el = document.getElementById(`irq-${key}-${v}`);
+    if (el) el.className = 't3-btn' + (v === val ? ' ' + cls[v] : '');
+  });
+}
+
+function toggleInlineMistake(el) {
+  const val = el.dataset.val;
+  if (val === 'Hatasız') {
+    document.querySelectorAll('#inline-mistake-list .mistake-item').forEach(m => m.classList.remove('selected'));
+    inlineMistakes = el.classList.toggle('selected') ? ['Hatasız'] : [];
+    if (!el.classList.contains('selected')) inlineMistakes = [];
+    return;
+  }
+  const hatasizEl = document.querySelector('#inline-mistake-list .mistake-item[data-val="Hatasız"]');
+  if (hatasizEl) hatasizEl.classList.remove('selected');
+  inlineMistakes = inlineMistakes.filter(m => m !== 'Hatasız');
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) {
+    if (!inlineMistakes.includes(val)) inlineMistakes.push(val);
+  } else {
+    inlineMistakes = inlineMistakes.filter(m => m !== val);
+  }
+}
+
+function handleInlineCloseScreenshot(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    inlineCloseScreenshotData = e.target.result;
+    document.getElementById('inline-close-screenshot-img').src = e.target.result;
+    document.getElementById('inline-close-screenshot-preview').style.display = 'block';
+    document.getElementById('inline-close-screenshot-placeholder').style.display = 'none';
+    document.getElementById('inline-close-screenshot-remove').style.display = 'block';
+    document.getElementById('inline-close-screenshot-drop').style.borderColor = 'var(--accent)';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeInlineCloseScreenshot() {
+  inlineCloseScreenshotData = null;
+  document.getElementById('icf-screenshot').value = '';
+  document.getElementById('inline-close-screenshot-img').src = '';
+  document.getElementById('inline-close-screenshot-preview').style.display = 'none';
+  document.getElementById('inline-close-screenshot-placeholder').style.display = 'block';
+  document.getElementById('inline-close-screenshot-remove').style.display = 'none';
+  document.getElementById('inline-close-screenshot-drop').style.borderColor = 'var(--border)';
+}
+
+function resetInlineReview() {
+  inlineReview = { again: null, exit: null, plan: null };
+  inlineMistakes = [];
+  ['again-yes','again-partial','again-no','exit-early','exit-right','exit-late','plan-yes','plan-partial','plan-no'].forEach(k => {
+    const el = document.getElementById('irq-' + k);
+    if (el) el.className = 't3-btn';
+  });
+  document.querySelectorAll('#inline-mistake-list .mistake-item').forEach(m => m.classList.remove('selected'));
+  const noteEl = document.getElementById('icf-note');
+  if (noteEl) noteEl.value = '';
+  removeInlineCloseScreenshot();
+}
+
 // ── TASLAK OTOMATİK KAYIT ──
 const DRAFT_KEY = 'tradelog_draft';
 
@@ -1234,6 +1432,9 @@ function setTradeStatus(status) {
   document.getElementById('status-open').classList.toggle('active', status === 'open');
   document.getElementById('status-closed').classList.toggle('active', status === 'closed');
   document.getElementById('exit-fields').style.display = status === 'closed' ? 'block' : 'none';
+  // Inline close review section visibility (shows close questions in form when KAPALI)
+  const reviewSection = document.getElementById('close-review-inline');
+  if (reviewSection) reviewSection.style.display = status === 'closed' ? 'block' : 'none';
   if (status === 'closed') {
     const now = new Date();
     document.getElementById('f-exit-date').value = now.toISOString().slice(0,10);
@@ -1571,6 +1772,15 @@ function doSaveTrade() {
     exitDate,
   };
 
+  // Collect inline close review data if trade is being saved as closed
+  const inlineReviewHasData = !isOpen && (
+    inlineReview.again || inlineReview.exit || inlineReview.plan ||
+    inlineMistakes.length > 0 ||
+    (document.getElementById('icf-note')?.value || '').trim() ||
+    inlineCloseScreenshotData
+  );
+  const inlineCloseNote = (document.getElementById('icf-note')?.value || '').trim();
+
   let trade;
   if (existing) {
     // Edit mode: merge over existing, preserving fields that aren't in the form
@@ -1578,25 +1788,32 @@ function doSaveTrade() {
     // Only touch close data if the trade is being closed via this form
     // (i.e. it was open and now being closed, or already closed and user edits exit price)
     if (!isOpen && (existing.isOpen || exitPrice)) {
-      // Keep existing review/closeNote/mistakes if already set (close modal manages those)
-      trade.review = existing.review || null;
-      trade.closeNote = existing.closeNote || null;
-      trade.mistakes = existing.mistakes || [];
-      trade.closeScreenshot = existing.closeScreenshot || null;
+      // If inline review has new data, use it; otherwise preserve existing
+      if (inlineReviewHasData) {
+        trade.review = { ...inlineReview };
+        trade.closeNote = inlineCloseNote || null;
+        trade.mistakes = [...inlineMistakes];
+        trade.closeScreenshot = inlineCloseScreenshotData || existing.closeScreenshot || null;
+      } else {
+        trade.review = existing.review || null;
+        trade.closeNote = existing.closeNote || null;
+        trade.mistakes = existing.mistakes || [];
+        trade.closeScreenshot = existing.closeScreenshot || null;
+      }
     }
     // Preserve partials/entries if any
     if (existing.partialExits) trade.partialExits = existing.partialExits;
     if (existing.entries) trade.entries = existing.entries;
   } else {
-    // New trade
+    // New trade - include inline review data when saved as closed
     trade = {
       id: Date.now(),
       ...formFields,
       ...statusFields,
-      mistakes: [],
-      closeNote: null,
-      review: null,
-      closeScreenshot: null,
+      mistakes: !isOpen ? [...inlineMistakes] : [],
+      closeNote: !isOpen ? (inlineCloseNote || null) : null,
+      review: !isOpen && inlineReviewHasData ? { ...inlineReview } : null,
+      closeScreenshot: !isOpen ? inlineCloseScreenshotData : null,
       createdAt: new Date().toISOString(),
     };
   }
@@ -1649,6 +1866,8 @@ function resetForm() {
   
   setDir('long');
   setTradeStatus('open');
+  // Reset inline close review state
+  resetInlineReview();
   // Reset market/symbol/quality selects
   const marketSel = document.getElementById('f-market');
   if (marketSel) marketSel.value = 'Kripto';
@@ -2313,8 +2532,33 @@ function editTrade(e, id) {
     document.getElementById('f-exit').value = t.exitPrice || '';
     document.getElementById('f-exit-date').value = t.exitDate || t.exitTime || '';
     recalcEntry();
+    // Restore inline close review data for closed trades
+    if (t.review) {
+      inlineReview = { again: t.review.again || null, exit: t.review.exit || null, plan: t.review.plan || null };
+      if (t.review.again) setInlineReview('again', t.review.again);
+      if (t.review.exit) setInlineReview('exit', t.review.exit);
+      if (t.review.plan) setInlineReview('plan', t.review.plan);
+    }
+    if (t.mistakes && t.mistakes.length) {
+      inlineMistakes = [...t.mistakes];
+      document.querySelectorAll('#inline-mistake-list .mistake-item').forEach(m => {
+        m.classList.toggle('selected', inlineMistakes.includes(m.dataset.val));
+      });
+    }
+    if (t.closeNote) {
+      const noteEl = document.getElementById('icf-note');
+      if (noteEl) noteEl.value = t.closeNote;
+    }
+    if (t.closeScreenshot) {
+      inlineCloseScreenshotData = t.closeScreenshot;
+      document.getElementById('inline-close-screenshot-img').src = t.closeScreenshot;
+      document.getElementById('inline-close-screenshot-preview').style.display = 'block';
+      document.getElementById('inline-close-screenshot-placeholder').style.display = 'none';
+      document.getElementById('inline-close-screenshot-remove').style.display = 'block';
+      document.getElementById('inline-close-screenshot-drop').style.borderColor = 'var(--accent)';
+    }
   }
-  
+
   recalc();
   window.scrollTo(0, 0);
   showToast('✏️ Düzenleme modunda');
