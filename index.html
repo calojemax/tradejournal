@@ -12,13 +12,16 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script>
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
   }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -70,6 +73,7 @@
     border-radius: 6px; cursor: pointer;
   }
   .btn-export:active { background: var(--accent); color: var(--bg); }
+  .sync-menu-btn { display:block; width:100%; margin-top:6px; text-align:left; }
 
   .fib-btn {
     font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
@@ -379,6 +383,7 @@
   <div class="header-top">
     <div class="logo" style="display:flex;align-items:center;gap:0"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAkCAYAAACe0YppAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAALyUlEQVR4nF2YeYxd5XnGf99y1nvv3GXmzow9M/bYjD2DMNjg4CYBWrEEwhJiElcsWWSUlrTwT3EURRUiQUWp2gYlVWmgaqOESA0hSWMSwMGkhJ2YpcEYg+2xx57VM/bsc2fuctavf9zBof2kc3Sk8+l7zvu9z/O9z3sEYFgdbW3tlDvX4LgeSimkVCilUEoipURrjdIarRWWZWHbNpa2kEoipUIIQZqmxGlCmsL84hJxEODaisOHDjI5Mf4hFFoIAQi2bN2OcrPMzM0T16toy0LbDparcB0b1/FwPQ8745PL5SgVCxTyLfi+j1YaIQUYQ7XWYGZuntNTZ+lcV+bO23Zy5OggNeOw9ZJL2f/UkyBAG2MYuGAbiXI5dmwQ2/GaUaVgoUhVjFQJIm5eMkzwhSARklojIAVsxyIMYhqNgIXlKiYMuePma7nl01fj+R7//thP+GBomK/efRcGw/6nnkRmc3ncbAsnhobwPA+tFUpKtFJorZvRCAmrO2NMShTH1MOAGEMQRUSWYWF5manZRSZnFnjh7cPUqw083+P4XIUTp8YpF/P8au+vWbuxn3J7J7q13Mni0jJSaUDCKohBIIRECIkRAoA4jolTi1qjgbQ0XkuWRhgxemyOai2gWgs4MT7FV275NLu/tIsvPPxz1NnTzAUp69rLjIyMMjF1lo2b+tFKW9TDABAIJVFakxqDEQIjBYkxaAGJSbEcRSMKqM5UccpFvI4Cx954l0YQESeG8ck5br5iBw9+4x5u+/6v+K/vPkbLmha6N5xHMac5dWKIpcoyfiaDTtOUNAWMIYkTEAqhVJMsUmAwoCVoSWWhgnItrIzP4MFDfPDG21QqVZTtUVlY4srrPsU93/o6N33zP/jtz14ms30H+YKkpeTgERBHIWEQ4FsS2dSSwQDGGJI0JUkS0jQFIbB8j3q1ilXy6Puzi0hsxdix45wdHkcaiMKIsLrCFbu/zOX3/g2fv/Nv6Wwr8Piv/54H99xK2rcBv72E2+IRhRFRGJKmKXIVt0keIZFKI5UiNYY4NVSXKyzNzuOvKVFeU2TknfcJVmpozyMIQ7TtsfbKzzAVZ/jmp3Yx8tJrtF/5cdYMrGPLhg6EEoT1AAsJGJI4BmPQIFYjFhghSDBIA0kQEdTnsHM+ufYSx589wMHF/QhtoSyLOE0ILR+nvBaxvEyHCrjgS5/l7XeHGJ1d4L/TLubG51k4PERHp0dLawYDxHGEMRYaPoxWYFaZHQUhqq1Ibt1azNgE06eGkVLh5DIEsSHBQGxYCQKCg2/QffutbP3nb3ETMP/X93PgTIMXRyXJWEB1ZIie/k/QqNdQShEFIalxV4EBpAIhMdoGqcn0dqNLOU6//Boy4yE9m0hAZFJy5QI3PHAn29p7GX/9fX4zvsLvVhJOS5iq15gaqmLqDdJ3xxnoKNDtOxw/eIyWjE8QBKRp+hFgs5pqrbEyLo3BIVaqy4hcBrnKamxNaiWogsXyn/Sy3NpH69lpZo/OEp1RHA1S/JUI9+Q81fdep1tP81efv5bvfP9H7LhwE1orqvU6GNBgQAiSIKC4/XzSKGT+4BGsrIvybWQYoiyLG/9uJ1svPo/yjM23H/kJZxeXedofRs+OUJ2ow/NzqEaV2vgKyezrXHHZFvbc9TEe+N5DWK02xbYSlu2QxIvNiE1TR2jHojY4TBgFGFsRRk32GStB53zCTR7TA1AsZQkxjI+OsDJskIPD6EkIXnyLZPgo+YUF7t9zI9uv2sbde+7jbGWW/ksuQGtNNpdhcippVieDwRhBmsTEjRCEwS1kuPSeqymvKbDRyvPE488xvVxndmyKI5NT1BdWSN8ZJDizQnJgGIYkJesV/vLmAXZ/8RFePXKUnbf/BYiY9X0bqE8s4Hb3kcv6zfMB0KQpGIEQoC1JGCYoW1HZbBFvjOnvLGH90uLsyRni0ymN6YCVU9Pw1EHESsJlvQN8+a6d3HD91YzNz7Pnu4/y7DP76OpqpdDSRrGzTD7jk1ES3/ObdGqSq1kABAKTpti+QgpY/GCGyojhyewsYyfHiRvLIKFdZLnqoku57pqruPbyy1i7tos/HD3BvQ8+xDPPv0S2q5Xz+tdTKGfJeBncICFjpbQWWshmfYRpElkbYzDGgEkxSYpINeFKwOSBUeJag2Imx0VtvVy86SI+efElXLSpn1KpjbGJKfbuf4l9L7/K0ePHMQKK7e20dZTwHY2LxjUWbS1ZWn2fFs8jm8mAaKpHC0ETUNtIIYmrAZZn07vSwtbNO7hw0ya6OtcgEIxOTPHQcz/g4HuHGRoZJQ0jdFsrxUIB23WxbRtVi1CpwMu4FDJZipksxZyH59oUCwWkUs200qQ1UaOGnckysHkz/Zv7aG9tI4ojXnvlAOMTk0zNTLNSayC1wnNd1vf0kF21Pl7Gx3YdPM/Fc1183yOfzdBWLFAuFsn7Dl1rOnj++edBCISUiHUbBsxyrU6cwKa+TQgMK8tLLFWWCBoBRkhs28b1XFzXRVk22rKwHQfPdXE9B8u28WyHrOdjJJjUYARIS6G1xHFcGvUaT+/bj+f5dJVa0MakKKHI5DIMnxqiVCrT3t7But6NOLaFtprVSgqBVAIpNVJJhBQIIDEGW1kcnDjGe8cHIVaQkWzL93NeuQsv63DNJ7ez780XqKRVSrkSxoBOU4PrOkydmaK7Zz2f/dwuurs6yOeyOK6FY9s4to1ta6xVa6uURmuJUgojoOBkeOzd3zA/m6VUgVqnx5/nruaavq3kSzn6e/v43fQfcHqzaMdFBqJJrihsIAUkUYilBcVClozn4dgWlmWt+mnR9NdKgmgqITUpCIjTBFfaXH/JBfS5NtORoHMhTzbrk89kOHVmGLE+w7rbPgZvLyLHQsS6Df1meXmF6koN1/fpWbeenu6e5lYKzhl7IQApEEIgpUQKiRACoRUiTBnLVSju6iL6n1GcC7vhlYDubJl8Vwu5Xo+7Lr+Vf6q9yrNPPEt+7+gf63EY1DAmZWjwKCePD54zJU0WCgSroEphjEGsdg9IQdyIoNNBHbao/P4k5Ru20DjbQDQSsgNtfOLe63jLnmb2zBJJNSE1AtGzod+s1BosLCw0rW0YgVYo2znnTVJjsHTzkIvjFN93SVNDlCQIpcAkpEGIURYy65JEEVYhg9Waw+vJUbxkDf5AJ5VTs1hH6hROLSGbOhYIqXngvq/zy72P8+MfPsqG3h6MSWnJ52lrbSUxkCLwHIfvfPsBBgYGEEpjGcht38HGr30Nlcti2R759evx8yVUIlFVTe2dCjM/Pszii5Ok0w3SOEYbQMpm3v7l4X/jp48/xvcefpTdX7yd9nKZp595hi/ccRsvv3aAMIz408s+znl9G+nv28BXdt+BH0f84+AEk2s3IxYreDt3kt35GczCEo3fPou983PEtiKZmSN49F+Jyx0kSYoUCGzLBmB+dp7pmVlOT56hp6ebJ36+l7Vr1zI2NsFN11/Lrbt2cv+D/8Abb7zNLTffSCGfpxE02FBeS+XkLFZYJ7h6F2cf+SFzR4aJ7r6fuTffZ/4HT7CSWweVGjqBOIqRy8tLtLTkMAaU5zI2OoYQgkOHDjN4/AQdHZ1gDAcOvMnPfrGXPfd8Fce2+NFj/8mZybOMnJ7irX37cbxO0t33kzy1D2vb9ZAWqN33DYiy6G3XwuA0cRBQcFwWF+YRQmpz4bZLmTwzw9zCAp7rkhqDkoLUQJImtJaKLFWWiaKIclsb1VqdeiMgl83iei6LlRWE7WIsFyqziFwJEdZIvRbMjpuh0EF4+GXaJw+xafMmfv/Cc03i+rkyF2zZwsj4BPOLSx+RT9PvxybFUhqlJHGcoLRGSUWSphiaWjcmRZgUlAVpClKSIDB+EZFGFKnTf/75fPDeIWZOn1pVDAI/18b63l5SDGEYIaRsvpGrH9Ak/2oDfq79QAix+kuh+Xxu4ofnQBzhODZC24yMDrM0PQHGfAi8OoRDNl/Etm3gj4t8dNJqx/p/hzh3+3/AzUYhCiMqlXlMWD231v8C2ywRfDfg6QsAAAAASUVORK5CYII=" style="height:36px;width:auto" alt="TradeLog"></div>
     <div style="display:flex;gap:8px">
+      <button class="btn-export" id="sync-btn" onclick="syncButtonClick()">☁ GİRİŞ</button>
       <button class="btn-export" onclick="resetAllData()" style="border-color:var(--muted);color:var(--muted)">🗑 SIFIRLA</button>
       <button class="btn-export" onclick="exportToExcel()">↓ EXCEL</button>
     </div>
@@ -1103,6 +1108,332 @@
 
 <div class="toast" id="toast"></div>
 
+<div id="sync-menu" style="display:none;position:fixed;top:56px;right:12px;z-index:2000;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;min-width:230px;box-shadow:0 8px 30px rgba(0,0,0,0.5);font-family:'Space Mono',monospace;font-size:11px">
+  <div id="sync-menu-user" style="color:var(--muted);margin-bottom:4px;word-break:break-all"></div>
+  <div id="sync-menu-status" style="margin-bottom:10px"></div>
+  <button class="btn-export sync-menu-btn" onclick="cloudSyncNow()">⟳ Şimdi eşitle</button>
+  <button class="btn-export sync-menu-btn" onclick="downloadJsonBackup()">⬇ JSON yedek indir</button>
+  <button class="btn-export sync-menu-btn" onclick="document.getElementById('json-restore-input').click()">⬆ Yedekten geri yükle</button>
+  <button class="btn-export sync-menu-btn" id="sync-menu-auth" onclick="cloudSignOut()" style="border-color:var(--red);color:var(--red)">Çıkış yap</button>
+  <input type="file" id="json-restore-input" accept="application/json,.json" style="display:none" onchange="restoreJsonBackup(this)">
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// ── BULUT SENKRONİZASYONU (Firebase Auth + Firestore) ──
+// Yapı: users/{uid}/trades/{tradeId} → { data: JSON string, u: updatedAt }
+// Yerel kopya (IndexedDB) her zaman kalır; bulut, cihazlar arası köprüdür.
+// ══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCOFKGT6FlWuXUs__c1ryDWd8Otyh0yHj4",
+  authDomain: "tradejournal-ae527.firebaseapp.com",
+  projectId: "tradejournal-ae527",
+  storageBucket: "tradejournal-ae527.firebasestorage.app",
+  messagingSenderId: "299041283678",
+  appId: "1:299041283678:web:bc9c657a8d6743dd371ecf"
+};
+
+const cloud = {
+  auth: null, db: null, user: null, unsub: null,
+  synced: {},            // tradeId -> hash of last version known to be in the cloud
+  initialSynced: false,  // first server snapshot processed?
+  pushTimer: null, pushing: false, pushAgain: false,
+  status: 'off'          // off | syncing | ok | offline | error
+};
+const CLOUD_MAX_BYTES = 950000; // Firestore doc limit is ~1 MiB
+
+// Fast 53-bit string hash (cyrb53)
+function cyrb53(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+const tradeHash = t => cyrb53(JSON.stringify(t));
+
+function cloudSyncedKey() { return 'tradelog_sync_' + cloud.user.uid; }
+function cloudLoadSynced() {
+  try { cloud.synced = JSON.parse(localStorage.getItem(cloudSyncedKey()) || '{}'); } catch (e) { cloud.synced = {}; }
+}
+function cloudSaveSynced() {
+  if (!cloud.user) return;
+  try { localStorage.setItem(cloudSyncedKey(), JSON.stringify(cloud.synced)); } catch (e) {}
+}
+function tradesCol() {
+  return cloud.db.collection('users').doc(cloud.user.uid).collection('trades');
+}
+
+// ── UI ──
+function setSyncStatus(s) {
+  cloud.status = s;
+  const btn = document.getElementById('sync-btn');
+  if (!btn) return;
+  const colors = { ok: 'var(--green)', syncing: 'var(--orange)', offline: 'var(--red)', error: 'var(--red)' };
+  if (!cloud.user) {
+    btn.innerHTML = '☁ GİRİŞ';
+    btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)';
+  } else {
+    btn.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${colors[s] || 'var(--muted)'};margin-right:6px;vertical-align:middle"></span>BULUT`;
+    btn.style.borderColor = colors[s] || 'var(--muted)'; btn.style.color = 'var(--text)';
+  }
+  const labels = { ok: '✓ Senkronize', syncing: '⟳ Senkronize ediliyor…', offline: '⚠ Çevrimdışı — bağlanınca gönderilecek', error: '⚠ Senkronizasyon hatası', off: '' };
+  const st = document.getElementById('sync-menu-status');
+  if (st) { st.textContent = labels[s] || ''; st.style.color = colors[s] || 'var(--muted)'; }
+}
+
+function syncButtonClick() {
+  if (!cloud.auth) { showToast('⚠️ Bulut servisi yüklenemedi (internet?)', 'err'); return; }
+  if (!cloud.user) { cloudSignIn(); return; }
+  const m = document.getElementById('sync-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('sync-menu');
+  if (m && m.style.display !== 'none' && !m.contains(e.target) && e.target.id !== 'sync-btn' && !e.target.closest('#sync-btn')) {
+    m.style.display = 'none';
+  }
+});
+
+// ── AUTH ──
+function cloudInit() {
+  if (typeof firebase === 'undefined') { console.warn('[cloud] Firebase SDK not loaded'); return; }
+  try {
+    firebase.initializeApp(firebaseConfig);
+    cloud.auth = firebase.auth();
+    cloud.db = firebase.firestore();
+  } catch (e) { console.error('[cloud] init failed', e); return; }
+
+  cloud.auth.getRedirectResult().catch(e => console.warn('[cloud] redirect result', e));
+  cloud.auth.onAuthStateChanged(user => {
+    if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; }
+    cloud.user = user || null;
+    cloud.initialSynced = false;
+    if (user) {
+      document.getElementById('sync-menu-user').textContent = user.email || user.displayName || '';
+      cloudLoadSynced();
+      cloudSubscribe();
+    } else {
+      document.getElementById('sync-menu').style.display = 'none';
+    }
+    setSyncStatus(user ? (navigator.onLine ? 'syncing' : 'offline') : 'off');
+  });
+
+  window.addEventListener('online', () => { if (cloud.user) { setSyncStatus('syncing'); cloudSchedulePush(); } });
+  window.addEventListener('offline', () => { if (cloud.user) setSyncStatus('offline'); });
+}
+
+function cloudSignIn() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  cloud.auth.signInWithPopup(provider).then(() => {
+    showToast('✓ Giriş yapıldı — senkronize ediliyor');
+  }).catch(e => {
+    if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(e.code)) {
+      cloud.auth.signInWithRedirect(provider);
+    } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      console.error('[cloud] sign-in', e);
+      showToast('⚠️ Giriş hatası: ' + (e.code || e.message), 'err');
+    }
+  });
+}
+
+function cloudSignOut() {
+  if (!confirm('Çıkış yapılsın mı?\nVerilerin bu cihazda kalır, sadece senkronizasyon durur.')) return;
+  cloud.auth.signOut().then(() => showToast('Çıkış yapıldı'));
+}
+
+// ── PULL: cloud → local ──
+function cloudSubscribe() {
+  cloud.unsub = tradesCol().onSnapshot({ includeMetadataChanges: false }, snap => {
+    let changed = false;
+
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id;
+      const idx = trades.findIndex(t => String(t.id) === id);
+
+      if (ch.type === 'removed') {
+        if (idx >= 0 && tradeHash(trades[idx]) === cloud.synced[id]) { trades.splice(idx, 1); changed = true; }
+        delete cloud.synced[id];
+        return;
+      }
+      if (ch.doc.metadata.hasPendingWrites) return; // our own write echo
+
+      const d = ch.doc.data();
+      if (!d || typeof d.data !== 'string') return;
+      const rh = cyrb53(d.data);
+
+      if (idx >= 0) {
+        const lh = tradeHash(trades[idx]);
+        if (lh === rh) { cloud.synced[id] = rh; return; }
+        const localDirty = lh !== cloud.synced[id];
+        if (localDirty && (trades[idx]._u || 0) > (d.u || 0)) return; // local is newer; push will win
+        trades[idx] = JSON.parse(d.data);
+        cloud.synced[id] = rh; changed = true;
+      } else {
+        // Known version but missing locally → deleted here, deletion pending push
+        if (cloud.synced[id] === rh) return;
+        const t = JSON.parse(d.data);
+        const pos = trades.findIndex(x => Number(x.id) < Number(t.id)); // keep newest-first order
+        if (pos === -1) trades.push(t); else trades.splice(pos, 0, t);
+        cloud.synced[id] = rh; changed = true;
+      }
+    });
+
+    // First server snapshot: detect trades deleted on other devices while this one was away
+    if (!cloud.initialSynced && !snap.metadata.fromCache) {
+      const remoteIds = new Set(snap.docs.map(d => d.id));
+      for (let i = trades.length - 1; i >= 0; i--) {
+        const id = String(trades[i].id);
+        if (!remoteIds.has(id) && cloud.synced[id] !== undefined) {
+          if (tradeHash(trades[i]) === cloud.synced[id]) { trades.splice(i, 1); changed = true; }
+          delete cloud.synced[id];
+        }
+      }
+      Object.keys(cloud.synced).forEach(id => { if (!remoteIds.has(id)) delete cloud.synced[id]; });
+      cloud.initialSynced = true;
+    }
+
+    cloudSaveSynced();
+    if (changed) {
+      dbSaveTrades(trades).catch(err => console.error('[cloud] local save', err));
+      renderTradeList(); updateStats();
+      if (document.getElementById('page-analytics')?.classList.contains('active')) updateAnalytics();
+      if (document.getElementById('page-review')?.classList.contains('active')) renderReview();
+    }
+    if (cloud.initialSynced) cloudPush();
+  }, err => {
+    console.error('[cloud] snapshot', err);
+    setSyncStatus('error');
+    showToast('⚠️ Bulut okunamadı: ' + (err.code || err.message), 'err');
+  });
+}
+
+// ── PUSH: local → cloud ──
+function cloudSchedulePush() {
+  if (!cloud.user) return;
+  clearTimeout(cloud.pushTimer);
+  cloud.pushTimer = setTimeout(cloudPush, 1200);
+}
+
+function cloudSyncNow() {
+  if (!cloud.user) return;
+  setSyncStatus('syncing');
+  cloudPush();
+}
+
+// Shrink screenshots of a trade until its JSON fits in one Firestore document
+function shrinkImage(dataUrl, maxDim, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; } else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+async function fitTradeForCloud(t) {
+  const steps = [[1280, 0.6], [1024, 0.55], [800, 0.5], [640, 0.45]];
+  for (const [dim, q] of steps) {
+    if (new TextEncoder().encode(JSON.stringify(t)).length <= CLOUD_MAX_BYTES) return true;
+    for (const k of ['screenshot', 'closeScreenshot']) {
+      if (typeof t[k] === 'string' && t[k].startsWith('data:image')) t[k] = await shrinkImage(t[k], dim, q);
+    }
+  }
+  return new TextEncoder().encode(JSON.stringify(t)).length <= CLOUD_MAX_BYTES;
+}
+
+async function cloudPush() {
+  if (!cloud.user || !cloud.initialSynced) return;
+  if (cloud.pushing) { cloud.pushAgain = true; return; }
+  cloud.pushing = true;
+  const col = tradesCol();
+  let localModified = false, failed = false;
+
+  try {
+    const localIds = new Set();
+    const jobs = [];
+    for (const t of trades) {
+      const id = String(t.id);
+      localIds.add(id);
+      if (tradeHash(t) === cloud.synced[id]) continue;
+      jobs.push(async () => {
+        t._u = Date.now(); localModified = true;
+        if (!(await fitTradeForCloud(t))) { console.warn('[cloud] trade too large, skipped', id); failed = true; return; }
+        const str = JSON.stringify(t);
+        await col.doc(id).set({ data: str, u: t._u });
+        cloud.synced[id] = cyrb53(str);
+        cloudSaveSynced();
+      });
+    }
+    Object.keys(cloud.synced).forEach(id => {
+      if (!localIds.has(id)) jobs.push(async () => {
+        await col.doc(id).delete();
+        delete cloud.synced[id];
+        cloudSaveSynced();
+      });
+    });
+
+    if (jobs.length) {
+      setSyncStatus(navigator.onLine ? 'syncing' : 'offline');
+      // run 4 at a time
+      let i = 0;
+      const worker = async () => { while (i < jobs.length) { const j = jobs[i++]; try { await j(); } catch (e) { failed = true; console.error('[cloud] write', e); } } };
+      await Promise.all([worker(), worker(), worker(), worker()]);
+    }
+    if (localModified) await dbSaveTrades(trades).catch(() => {});
+    setSyncStatus(failed ? 'error' : 'ok');
+  } finally {
+    cloud.pushing = false;
+    if (cloud.pushAgain) { cloud.pushAgain = false; cloudPush(); }
+  }
+}
+
+// ── JSON YEDEK ──
+function downloadJsonBackup() {
+  const blob = new Blob([JSON.stringify(trades)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tradelog-yedek-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  showToast('✓ Yedek indirildi (' + trades.length + ' işlem)');
+}
+function restoreJsonBackup(input) {
+  const file = input.files[0]; input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch (e) { showToast('⚠️ Geçersiz yedek dosyası', 'err'); return; }
+    if (!Array.isArray(data)) { showToast('⚠️ Geçersiz yedek dosyası', 'err'); return; }
+    if (!confirm(data.length + ' işlem içeren yedek yüklensin mi?\nAynı işlemler yedekteki haliyle güncellenir, eksikler eklenir. Hiçbir şey silinmez.')) return;
+    let added = 0, updated = 0;
+    data.forEach(t => {
+      if (!t || t.id == null) return;
+      const idx = trades.findIndex(x => String(x.id) === String(t.id));
+      if (idx >= 0) { trades[idx] = t; updated++; } else { trades.push(t); added++; }
+    });
+    trades.sort((a, b) => Number(b.id) - Number(a.id));
+    saveData(); renderTradeList(); updateStats();
+    document.getElementById('sync-menu').style.display = 'none';
+    showToast(`✓ ${added} eklendi, ${updated} güncellendi`);
+  };
+  reader.readAsText(file);
+}
+</script>
+
 <script>
 // Trades stored in IndexedDB (unlimited capacity vs localStorage's 5-10MB limit)
 // localStorage used as legacy fallback and for migration
@@ -1449,6 +1780,7 @@ async function init() {
   loadCompactPref();
   onMarketChange();
   checkStorageHealth();
+  cloudInit();
 }
 
 function checkStorageHealth() {
@@ -2837,7 +3169,8 @@ function exportToExcel() {
 }
 
 function resetAllData() {
-  if (confirm('Tüm işlemleri silmek istediğine emin misin? Bu işlem geri alınamaz.')) {
+  const cloudWarn = (typeof cloud !== 'undefined' && cloud.user) ? '\n\n⚠️ Bulut hesabındaki veriler de silinir — tüm cihazlardan kaybolur!' : '';
+  if (confirm('Tüm işlemleri silmek istediğine emin misin? Bu işlem geri alınamaz.' + cloudWarn)) {
     trades = [];
     saveData();
     // Also clear legacy localStorage
@@ -2866,6 +3199,7 @@ function saveData() {
     console.error('[saveData] IndexedDB failed:', err);
     showToast(`⚠️ Kaydedilemedi: ${err.name || err.message || 'Hata'}`, 'err');
   }).finally(() => _pendingSaves--);
+  if (typeof cloudSchedulePush === 'function') cloudSchedulePush();
   return { ok: true }; // Optimistic - IndexedDB rarely fails
 }
 
