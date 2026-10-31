@@ -73,6 +73,10 @@
     border-radius: 6px; cursor: pointer;
   }
   .btn-export:active { background: var(--accent); color: var(--bg); }
+  .shot-toolbar { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .shot-btn { flex:1 1 0; padding:8px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:11px; font-family:'Space Mono',monospace; cursor:pointer; }
+  .shot-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .shot-hint { flex-basis:100%; font-size:10px; color:var(--muted); text-align:center; }
   .sync-menu-btn { display:block; width:100%; margin-top:6px; text-align:left; }
 
   .fib-btn {
@@ -1780,6 +1784,7 @@ async function init() {
   loadCompactPref();
   onMarketChange();
   checkStorageHealth();
+  enhanceImageDrops();
   cloudInit();
 }
 
@@ -2042,6 +2047,121 @@ function confirmCrop() {
     document.getElementById('screenshot-remove-btn').style.display = 'block';
     document.getElementById('screenshot-drop-area').style.borderColor = 'var(--accent)';
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── EKRAN GÖRÜNTÜSÜ: ekrandan yakala / Ctrl+V yapıştır / sürükle-bırak (masaüstü) ──
+// Tüm yollar görseli ilgili file input'a verir; mevcut kırpma akışı aynen çalışır.
+// ══════════════════════════════════════════════════════════════
+const IMG_TARGETS = [
+  { drop: 'screenshot-drop-area',          input: 'f-screenshot' },
+  { drop: 'inline-close-screenshot-drop',  input: 'icf-screenshot' },
+  { drop: 'close-screenshot-drop',         input: 'cf-screenshot' },
+];
+let lastImageTarget = null;
+
+function feedImageToInput(inputId, blob) {
+  const input = document.getElementById(inputId);
+  if (!input || !blob) return;
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const file = new File([blob], 'ekran-' + Date.now() + '.' + ext, { type: blob.type || 'image/png' });
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+async function captureScreenTo(inputId, ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  lastImageTarget = inputId;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { displaySurface: 'window' }, audio: false,
+      selfBrowserSurface: 'exclude', surfaceSwitching: 'exclude', monitorTypeSurfaces: 'include'
+    });
+  } catch (e) {
+    if (e && e.name !== 'NotAllowedError' && e.name !== 'AbortError') showToast('⚠️ Ekran yakalanamadı: ' + (e.message || e.name), 'err');
+    return;
+  }
+  try {
+    const video = document.createElement('video');
+    video.muted = true; video.playsInline = true; video.srcObject = stream;
+    await video.play();
+    for (let i = 0; i < 50 && !video.videoWidth; i++) await new Promise(r => setTimeout(r, 40));
+    await new Promise(r => setTimeout(r, 150)); // let the first real frame arrive
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    feedImageToInput(inputId, blob);
+  } finally {
+    stream.getTracks().forEach(t => t.stop());
+  }
+}
+
+async function pasteImageTo(inputId, ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  lastImageTarget = inputId;
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const type = item.types.find(t => t.startsWith('image/'));
+      if (type) { feedImageToInput(inputId, await item.getType(type)); return; }
+    }
+    showToast('Panoda görsel yok — önce Win+Shift+S ile ekran alıntısı al', 'err');
+  } catch (e) {
+    showToast('Panoya erişilemedi — Ctrl+V ile yapıştırmayı dene', 'err');
+  }
+}
+
+function isVisible(el) { return !!el && el.offsetParent !== null; }
+
+function pickPasteTarget() {
+  if (document.getElementById('crop-modal')?.style.display === 'flex') return null;
+  if (document.getElementById('modal-overlay')?.classList.contains('open')) {
+    return isVisible(document.getElementById('close-screenshot-drop')) ? 'cf-screenshot' : null;
+  }
+  const last = IMG_TARGETS.find(t => t.input === lastImageTarget);
+  if (last && isVisible(document.getElementById(last.drop))) return last.input;
+  return isVisible(document.getElementById('screenshot-drop-area')) ? 'f-screenshot' : null;
+}
+
+document.addEventListener('paste', e => {
+  const items = e.clipboardData ? [...e.clipboardData.items] : [];
+  const imgItem = items.find(i => i.kind === 'file' && i.type.startsWith('image/'));
+  if (!imgItem) return; // normal text paste continues as usual
+  const target = pickPasteTarget();
+  if (!target) { showToast('Görseli eklemek için önce "+ Ekle" sayfasını veya kapanış ekranını aç', 'err'); return; }
+  e.preventDefault();
+  feedImageToInput(target, imgItem.getAsFile());
+});
+
+function enhanceImageDrops() {
+  const desktop = window.matchMedia('(pointer: fine)').matches;
+  const canCapture = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  IMG_TARGETS.forEach(({ drop, input }) => {
+    const area = document.getElementById(drop);
+    if (!area) return;
+    // remember which area the user last interacted with (for Ctrl+V)
+    ['mouseenter', 'click'].forEach(ev => area.addEventListener(ev, () => { lastImageTarget = input; }));
+    // drag & drop
+    area.addEventListener('dragover', e => { e.preventDefault(); area.style.borderColor = 'var(--accent)'; });
+    area.addEventListener('dragleave', () => { area.style.borderColor = ''; });
+    area.addEventListener('drop', e => {
+      e.preventDefault(); area.style.borderColor = '';
+      const f = [...(e.dataTransfer?.files || [])].find(f => f.type.startsWith('image/'));
+      if (f) { lastImageTarget = input; feedImageToInput(input, f); }
+    });
+    if (!desktop) return;
+    const bar = document.createElement('div');
+    bar.className = 'shot-toolbar';
+    bar.innerHTML =
+      (canCapture ? `<button type="button" class="shot-btn" onclick="captureScreenTo('${input}', event)">🖥 Ekrandan Al</button>` : '') +
+      `<button type="button" class="shot-btn" onclick="pasteImageTo('${input}', event)">📋 Yapıştır</button>` +
+      `<div class="shot-hint">Win+Shift+S ile alıntı alıp Ctrl+V ile de yapıştırabilir ya da görseli buraya sürükleyebilirsin</div>`;
+    area.insertAdjacentElement('afterend', bar);
+  });
 }
 
 function cancelCrop() {
